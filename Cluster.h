@@ -54,7 +54,7 @@ Ptr<Node> Cluster::getMaster(){
 }
 bool Cluster::isMaster(Ptr<Node> node)
 {
-		return (masterNode == node);
+		return (getMaster() == node);
 }
 
 vector < Ptr<Node> > Cluster::getNodeList(){

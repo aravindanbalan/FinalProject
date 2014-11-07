@@ -32,23 +32,24 @@ class ClusterManager{
 		//void choose_Master(int clusterid);		---- have to do later in second phase
 		bool isMaster(Ptr<Node> node);
 		static ClusterManager* getInstance();
+		int getNumberOfClusters();
 		int getClusterIDFromTopic(int topic);
 		int getClusterIDFromNode(Ptr<Node> node);
 		void putClusterIDForTopic(int topic, int clusterID);
 		void putClusterIDForNode( Ptr<Node> node, int clusterID); 
 		Cluster* getClusterFromClusterID(int clusterID);
 		void putClusterForClusterID(int clusterID, Cluster* cluster);	
-	
+		
         ~ClusterManager()
         {
 			instanceFlag = false;
-			numClusters = -1;
+			numClusters = 0;
         }
 		
 };
 
 bool ClusterManager::instanceFlag = false;
-int ClusterManager::numClusters = -1;
+int ClusterManager::numClusters = 0;
 ClusterManager* ClusterManager::clusterMgr = NULL;
 
 ClusterManager* ClusterManager::getInstance()
@@ -57,11 +58,15 @@ ClusterManager* ClusterManager::getInstance()
         {		
 		clusterMgr = new ClusterManager();
 		instanceFlag = true;
-		numClusters = -1;
+		numClusters = 0;
 	}
         return clusterMgr;
     
 }	
+
+int ClusterManager::getNumberOfClusters(){
+	return numClusters;
+}
 
 int ClusterManager::getClusterIDFromTopic(int topic){
 	
@@ -136,8 +141,10 @@ void ClusterManager::join_Cluster(Ptr<Node> node, int topic){
 	}
 	else{
 		
-		int clusterID = numClusters + 1;
+		int clusterID = numClusters;
 		Cluster* cluster = createNewCluster(clusterID);
+		//increment the number of clusters in the system as we created a new cluster
+		numClusters++;
 		cluster->addNodeToCluster(node);
 		
 		// add in three places
@@ -148,11 +155,10 @@ void ClusterManager::join_Cluster(Ptr<Node> node, int topic){
 		putClusterIDForTopic(topic,clusterID);
 		putClusterForClusterID(clusterID,cluster);
 		putClusterIDForNode(node,clusterID);
-		
-		//increment the number of clusters in the system
-		numClusters++;
+
 		
 	}
+
 }
 
 bool ClusterManager::isMaster(Ptr<Node> node){
