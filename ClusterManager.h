@@ -15,10 +15,17 @@ class ClusterManager{
 	private:
 		static int numClusters;
 		static bool instanceFlag;
+		//cluster node to send and receive packets
+		Ptr<Node> clusterMgrNode;
+		//Ptr<Socket> clusterMgrSocket;
+		NodeContainer clusterMgrNodeContainer;
+		/////////
 		static ClusterManager *clusterMgr;
 		map<int, Cluster*> clusterMap;
 		map<Ptr<Node>, int > nodeClusterIDAssociationMap;
 		map<int, int > topicClusterIDAssociationMap;
+		map<Ptr<Node>, int > nodeNodeIDAssociationMap;
+		static TypeId tid;
 		ClusterManager()
 		{
 		 //private constructor
@@ -26,7 +33,7 @@ class ClusterManager{
 	
 	public:
 		
-		void join_Cluster(Ptr<Node> node, int topic);
+		void join_Cluster(Ptr<Node> node, int nodeID, int topic);
 		//void leave_Cluster(Ptr<Node> node);
 		Cluster* createNewCluster(int clusterID); 
 		//void choose_Master(int clusterid);		---- have to do later in second phase
@@ -39,6 +46,14 @@ class ClusterManager{
 		void putClusterIDForNode( Ptr<Node> node, int clusterID); 
 		Cluster* getClusterFromClusterID(int clusterID);
 		void putClusterForClusterID(int clusterID, Cluster* cluster);	
+		NodeContainer getNodeContainer();
+		void setNodeContainer(NodeContainer nodeC);
+		Ptr<Node> getClusterMgrNode();
+		void setClusterMgrNode(Ptr<Node> node);
+		//Ptr<Socket> getClusterMgrSocket();
+		//void setClusterMgrSocket(Ptr<Node> node);
+		int getNodeIDForNode(Ptr<Node> node);
+		void setNodeIDForNode(Ptr<Node> node, int nodeID);
 		
         ~ClusterManager()
         {
@@ -50,6 +65,7 @@ class ClusterManager{
 
 bool ClusterManager::instanceFlag = false;
 int ClusterManager::numClusters = 0;
+TypeId ClusterManager::tid;
 ClusterManager* ClusterManager::clusterMgr = NULL;
 
 ClusterManager* ClusterManager::getInstance()
@@ -59,6 +75,7 @@ ClusterManager* ClusterManager::getInstance()
 		clusterMgr = new ClusterManager();
 		instanceFlag = true;
 		numClusters = 0;
+		tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
 	}
         return clusterMgr;
     
@@ -126,7 +143,7 @@ Cluster* ClusterManager::createNewCluster(int clusterID){
 	return newCluster;
 }
 
-void ClusterManager::join_Cluster(Ptr<Node> node, int topic){
+void ClusterManager::join_Cluster(Ptr<Node> node, int nodeID, int topic){
 	
 	map<int, int>::iterator p;
 	p = topicClusterIDAssociationMap.find(topic);
@@ -137,6 +154,8 @@ void ClusterManager::join_Cluster(Ptr<Node> node, int topic){
 		//get the cluster from ClsuterMap and add the node to the cluster
 		Cluster* cluster = getClusterFromClusterID(clusterID);
 		cluster->addNodeToCluster(node);
+		
+		setNodeIDForNode(node,nodeID);
 		putClusterIDForNode(node,clusterID);
 	}
 	else{
@@ -155,7 +174,7 @@ void ClusterManager::join_Cluster(Ptr<Node> node, int topic){
 		putClusterIDForTopic(topic,clusterID);
 		putClusterForClusterID(clusterID,cluster);
 		putClusterIDForNode(node,clusterID);
-
+		setNodeIDForNode(node,nodeID);
 		
 	}
 
@@ -166,4 +185,52 @@ bool ClusterManager::isMaster(Ptr<Node> node){
 	int clusterID = getClusterIDFromNode(node);
 	Cluster* cluster = getClusterFromClusterID(clusterID);
 	return cluster->isMaster(node);
+}
+
+
+NodeContainer ClusterManager::getNodeContainer(){
+	
+	return clusterMgrNodeContainer;
+}
+
+void ClusterManager::setNodeContainer(NodeContainer nodeC){
+	
+	clusterMgrNodeContainer = nodeC;
+	setClusterMgrNode(nodeC.Get (0));
+}
+
+Ptr<Node> ClusterManager::getClusterMgrNode(){
+	
+	return clusterMgrNode;
+}
+
+void ClusterManager::setClusterMgrNode(Ptr<Node> node){
+	
+	clusterMgrNode = node;
+	//setClusterMgrSocket(node);
+}
+/*
+Ptr<Socket> ClusterManager::getClusterMgrSocket(){
+	
+	return clusterMgrSocket;
+}
+void ClusterManager::setClusterMgrSocket(Ptr<Node> node){
+	
+	 clusterMgrSocket = Socket::CreateSocket (node, tid);
+}
+*/
+int ClusterManager::getNodeIDForNode(Ptr<Node> node){
+	
+	map<Ptr<Node>, int >::iterator p;
+	p = nodeNodeIDAssociationMap.find(node);
+	return p->second;
+}
+void ClusterManager::setNodeIDForNode(Ptr<Node> node, int nodeID){
+	
+	map<Ptr<Node>, int >::iterator p;
+	p = nodeNodeIDAssociationMap.find(node);
+	if(p != nodeNodeIDAssociationMap.end())
+		nodeNodeIDAssociationMap[node] = nodeID;
+	else
+		nodeNodeIDAssociationMap.insert(pair<Ptr<Node>,int>(node,nodeID));
 }

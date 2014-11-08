@@ -1,78 +1,58 @@
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <stdlib.h>     /* srand, rand */
-#include <time.h>
+#include "ApplicationUtil.h"
 
-#include "ns3/core-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/ns2-mobility-helper.h"
-#include "ns3/netanim-module.h"
-#include "ClusterManager.h"
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/config-store-module.h"
-#include "ns3/wifi-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/olsr-helper.h"
-#include "ns3/ipv4-static-routing-helper.h"
-#include "ns3/ipv4-list-routing-helper.h"
-#include "ns3/aodv-helper.h"
-
-using namespace ns3;
-using namespace std;
 NS_LOG_COMPONENT_DEFINE ("WifiSimpleAdhocGrid");
 
-// Prints actual position and velocity when a course change event occurs
-/*
-static void
-CourseChange (std::ostream *os, std::string foo, Ptr<const MobilityModel> mobility)
-{
-  Vector pos = mobility->GetPosition (); // Get position
-  Vector vel = mobility->GetVelocity (); // Get velocity
-  Ptr<Node> node = mobility->GetObject<Node> ();
 
-  // Prints position and velocities
-  *os << Simulator::Now () << " POS: x=" << pos.x << ", y=" << pos.y
-      << ", z=" << pos.z << "; VEL:" << vel.x << ", y=" << vel.y
-      << ", z=" << vel.z << " Node : " << node->GetId () << std::endl;
-}
-*/
-int randomNumberGenerator(int numTopics)
+//step1 - each node requests for the random topic assigned for current round
+// sends a request packet
+
+void sendRequestToClusterManager(Ptr<Socket> socket,int senderNode, std::string sourceControl, std::string sourceMessageId, std::string sourceMessage)
 {
-		//srand (time(NULL));
-		int v1 = rand() % numTopics; 
-		return v1;
+	cout<<"Sending request to cluster Manager"<<endl;
 }
+
+void requestForTopic(){
+	
+	cout<<"request..."<<endl;	
+
+	// send request packet for each of the nodes in the system
+	for(int nodeind = 0; nodeind < nodeNum; nodeind++)
+    {
+		
+	}
+	
+}
+
+static void Vanet(){
+		
+	cout << "Inside vanet.... for round "<< currentRound << endl;
+	
+	if(currentRound == numRounds - 1)
+	{
+		//stop simulation
+	}
+	
+	for(int nodeind = 0; nodeind < nodeNum; nodeind++)
+    {
+		int random_topic_id = randomNumberGenerator(numofTopics); 
+		//cout<< random_topic_id << endl;
+		//put all nodes in some cluster based on the topic of interest
+		clusterMgr->join_Cluster(vehicles.Get(nodeind), nodeind, random_topic_id);
+		cout<<"In cluster number : "<< clusterMgr->getClusterIDFromNode(vehicles.Get(nodeind)) << endl;
+		cout << "Is Master : " << clusterMgr->isMaster(vehicles.Get(nodeind)) << endl;
+		cout<< endl;
+	}	
+
+	cout << "Total number of clusters formed : " << clusterMgr->getNumberOfClusters() << endl;
+
+	requestForTopic();
+
+}
+
 // Example to use ns2 traces file in ns3
 int main (int argc, char *argv[])
-{
-	 //NS_LOG_UNCOND("Inside Main");
-	std::string traceFile;
-	std::string logFile;
-
-	bool verbose = false;
-	bool tracing = true;
-	TypeId tid;
-	Ipv4InterfaceContainer i;
-	NodeContainer c;
-	int    nodeNum;
-	double duration;
-	//int numRounds = 4;
-	int numofTopics = 7;
-	ClusterManager *clusterMgr = ClusterManager::getInstance();	
-	
-	
-	
-	std::string phyMode ("OfdmRate54Mbps");
-
-	// Enable logging from the ns2 helper
-	//LogComponentEnable ("Ns2MobilityHelper",LOG_LEVEL_DEBUG);
-
-	// Parse command line attribute
-	
+{	
 	CommandLine cmd;
 	cmd.AddValue ("traceFile", "Ns2 movement trace file", traceFile);
 	cmd.AddValue ("nodeNum", "Number of nodes", nodeNum);
@@ -105,22 +85,13 @@ int main (int argc, char *argv[])
 	Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode",
 						StringValue (phyMode));
 
-	c.Create (nodeNum);
-
-	for(int nodeind = 0; nodeind < nodeNum; nodeind++)
-    {
-		int random_topic_id = randomNumberGenerator(numofTopics); 
-		//cout<< random_topic_id << endl;
-		//put all nodes in some cluster based on the topic of interest
-		clusterMgr->join_Cluster(c.Get(nodeind), random_topic_id);
-		
-		cout<<"In cluster number : "<< clusterMgr->getClusterIDFromNode(c.Get(nodeind)) << endl;
-		cout << "Is Master : " << clusterMgr->isMaster(c.Get(nodeind)) << endl;
-		cout<< endl;
-	}	
-
-	cout << "Total number of clusters formed : " << clusterMgr->getNumberOfClusters() << endl;
-	WifiHelper wifi;
+	vehicles.Create (nodeNum);
+	wifiApNode.Create (1);
+	
+	// set the node container for the clusterManager
+	
+	clusterMgr->setNodeContainer(wifiApNode);
+	
 	if (verbose)
 	{
 		wifi.EnableLogComponents ();  // Turn on all Wifi logging
@@ -145,19 +116,31 @@ int main (int argc, char *argv[])
 
 	// Set it to adhoc mode
 	wifiMac.SetType ("ns3::AdhocWifiMac");
-	NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, c);
+	NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, vehicles);
+	
+	// base station
+	NetDeviceContainer apDevices = wifi.Install (wifiPhy, wifiMac, wifiApNode);
 
 
 	// Create Ns2MobilityHelper with the specified trace log file as parameter
-	Ns2MobilityHelper mobility = Ns2MobilityHelper (traceFile);
+	Ns2MobilityHelper ns2mobility = Ns2MobilityHelper (traceFile);
+	ns2mobility.Install (); // configure movements for each node, while reading trace file
+	
+	
+	// set mobility model for base station AP
+	
+	MobilityHelper mobility;
 
-	// open log file for output
-	//std::ofstream os;
-	//os.open (logFile.c_str ());
-
-	// Create all nodes.
-
-	mobility.Install (); // configure movements for each node, while reading trace file
+	mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
+                                 "MinX", DoubleValue (10.0),
+                                 "MinY", DoubleValue (10.0),
+                                 "DeltaX", DoubleValue (5.0),
+                                 "DeltaY", DoubleValue (2.0),
+                                 "GridWidth", UintegerValue (5),
+                                 "LayoutType", StringValue ("RowFirst"));
+	
+	mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+	mobility.Install (wifiApNode);
 
 	Ipv4StaticRoutingHelper staticRouting;
 	Ipv4ListRoutingHelper list;
@@ -165,12 +148,14 @@ int main (int argc, char *argv[])
 
 	InternetStackHelper internet;
 	internet.SetRoutingHelper (list); // has effect on the next Install ()
-	internet.Install (c);
+	internet.Install (vehicles);
+	internet.Install (wifiApNode);
 
 	Ipv4AddressHelper ipv4;
 
 	ipv4.SetBase ("10.1.1.0", "255.255.255.0");
 	i = ipv4.Assign (devices);
+	i = ipv4.Assign (apDevices);
 
 	tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
 
@@ -182,6 +167,12 @@ int main (int argc, char *argv[])
 
 	Simulator::Stop (Seconds (duration));
 	AnimationInterface anim ("animation.xml");
+
+	/////////////////////////////////////////////////////
+	
+	Vanet();
+	
+	//////////////////////////////////////
 
 	if (tracing == true)
 	{
