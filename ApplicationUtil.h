@@ -20,6 +20,7 @@
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
 #include "ns3/aodv-helper.h"
+#include "MyTag.h"
 
 using namespace ns3;
 using namespace std;
@@ -30,6 +31,7 @@ bool verbose = false;
 bool tracing = true;
 TypeId tid;
 Ipv4InterfaceContainer i;
+Ipv4InterfaceContainer iap;
 NodeContainer vehicles;
 NodeContainer wifiApNode ;
 int    nodeNum;

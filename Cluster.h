@@ -14,27 +14,35 @@ class Cluster{
 
 	private: 
 		int clusterID;
+		int topic;
 		int numNodes;
 		Ptr<Node> masterNode;
 		vector<Ptr<Node> > nodeList;
 	
 	public:
 	    
-	    Cluster(int ID)
+	    Cluster(int ID, int top)
 	    {
 			clusterID = ID;
 			numNodes = 0;
+			topic = top;
 		}
 		Ptr<Node> getMaster();
 		bool isMaster(Ptr<Node> node);
 		vector < Ptr<Node> > getNodeList();
 		void addNodeToCluster(Ptr<Node> node);
-		int getNumNodes();	
+		void removeNodeFromCluster(Ptr<Node> node);
+		int getNumNodes();
+		int getTopic();	
 };
 
 int Cluster::getNumNodes()
 {
 		return numNodes;
+}
+int Cluster::getTopic()
+{
+		return topic;
 }
 void Cluster::addNodeToCluster(Ptr<Node> node){
 	
@@ -48,6 +56,22 @@ void Cluster::addNodeToCluster(Ptr<Node> node){
 			masterNode = node;
 		
 }
+
+void Cluster::removeNodeFromCluster(Ptr<Node> node){
+	
+	vector <Ptr<Node> > nodeList = getNodeList();
+	for( vector<Ptr<Node> >::iterator iter = nodeList.begin(); iter != nodeList.end(); ++iter )
+	{
+		if( *iter == node )
+		{
+			nodeList.erase( iter );
+			numNodes--;
+			break;
+		}
+	}
+	
+}
+
 Ptr<Node> Cluster::getMaster(){
 	
 		return masterNode;

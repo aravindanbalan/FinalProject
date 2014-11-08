@@ -3,14 +3,59 @@
 
 NS_LOG_COMPONENT_DEFINE ("WifiSimpleAdhocGrid");
 
+//////////////////////// Send and Recieve methods /////////////////////////////////////////
+
+static void SendTopicRequest (Ptr<Socket> socket, int SourceNodeIndex)
+{
+	uint32_t size = 1024;
+    Ptr<Packet> sendPacket = Create<Packet> (size);
+
+    MyTag sendTag;
+    sendTag.SetSimpleValue(SourceNodeIndex);
+    sendPacket->AddPacketTag(sendTag);
+
+    socket->Send(sendPacket);
+    socket->Close();
+}
+
+static void ReceiveTopicRequest (Ptr<Socket> socket)
+{
+ 
+	//Ptr<Node> recvnode = socket->GetNode();
+    //int recNodeIndex = ApplicationUtil::getInstance()->getNodeFromMap(recvnode);
+
+    Ptr<Packet> recPacket = socket->Recv();
+
+    uint8_t *buffer = new uint8_t[recPacket->GetSize()];
+    recPacket->CopyData(buffer,recPacket->GetSize());
+
+    MyTag recTag;
+    recPacket->PeekPacketTag(recTag);
+    int tagVal =int(recTag.GetSimpleValue());
+    std::ostringstream s;
+    s<<tagVal;
+    std::string ss(s.str());
+    int srcNodeIndex = atoi(ss.c_str());
+    
+	std::cout<<"Base station received from : "<< srcNodeIndex <<endl;
+   
+    //publicKeyCounter--;
+
+	/*
+    if(publicKeyCounter == 0)
+    {
+        Simulator::ScheduleNow (&SimulatorLoop, socket,tid,c,i);
+    }
+    */
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////// simulator methods //////////////////////////////////////////
 
 //step1 - each node requests for the random topic assigned for current round
 // sends a request packet
-
-void sendRequestToClusterManager(Ptr<Socket> socket,int senderNode, std::string sourceControl, std::string sourceMessageId, std::string sourceMessage)
-{
-	cout<<"Sending request to cluster Manager"<<endl;
-}
 
 void requestForTopic(){
 	
@@ -19,8 +64,20 @@ void requestForTopic(){
 	// send request packet for each of the nodes in the system
 	for(int nodeind = 0; nodeind < nodeNum; nodeind++)
     {
+		Ptr<Node> sourceNode = vehicles.Get (nodeind);
+		Ptr<Node> recvNode = clusterMgr->getClusterMgrNode();
+		int baseStationIndex = 0;
 		
-	}
+		Ptr<Socket> recvNodeSink = Socket::CreateSocket (recvNode, tid);
+		InetSocketAddress localSocket = InetSocketAddress (Ipv4Address::GetAny (),9803);
+		recvNodeSink->Bind (localSocket);
+		recvNodeSink->SetRecvCallback (MakeCallback (&ReceiveTopicRequest));
+
+		InetSocketAddress remoteSocket = InetSocketAddress (iap.GetAddress (baseStationIndex, 0), 9803);
+		Ptr<Socket> sourceNodeSocket = Socket::CreateSocket (sourceNode, tid);
+		sourceNodeSocket->Connect (remoteSocket);
+		Simulator::ScheduleNow (&SendTopicRequest, sourceNodeSocket,nodeind);
+}
 	
 }
 
@@ -33,11 +90,21 @@ static void Vanet(){
 		//stop simulation
 	}
 	
+	// erase all maps for fresh round - do it in the end before calling Vanet() for the next round
+	// or for each node get the previous cluster details and leave that cluster and join the new cluster
+	//clusterMgr->eraseAllMaps();
+	
 	for(int nodeind = 0; nodeind < nodeNum; nodeind++)
     {
 		int random_topic_id = randomNumberGenerator(numofTopics); 
 		//cout<< random_topic_id << endl;
 		//put all nodes in some cluster based on the topic of interest
+		cout<<"In cluster number................ : "<< clusterMgr->getClusterIDFromNode(vehicles.Get(nodeind)) << endl;
+		
+		if(clusterMgr->getClusterIDFromNode(vehicles.Get(nodeind)) != -999){
+			clusterMgr->leave_Cluster(vehicles.Get(nodeind), nodeind);
+		}
+			
 		clusterMgr->join_Cluster(vehicles.Get(nodeind), nodeind, random_topic_id);
 		cout<<"In cluster number : "<< clusterMgr->getClusterIDFromNode(vehicles.Get(nodeind)) << endl;
 		cout << "Is Master : " << clusterMgr->isMaster(vehicles.Get(nodeind)) << endl;
@@ -49,6 +116,9 @@ static void Vanet(){
 	requestForTopic();
 
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
 
 // Example to use ns2 traces file in ns3
 int main (int argc, char *argv[])
@@ -155,7 +225,7 @@ int main (int argc, char *argv[])
 
 	ipv4.SetBase ("10.1.1.0", "255.255.255.0");
 	i = ipv4.Assign (devices);
-	i = ipv4.Assign (apDevices);
+	iap = ipv4.Assign (apDevices);
 
 	tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
 
