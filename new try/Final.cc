@@ -69,7 +69,7 @@ private:
     void ConfigureBaseStations ();
 };
 
-Topology::Topology (): nodeNum (50), duration (300.0), pcap (false),
+Topology::Topology (): nodeNum (51), duration (300.0), pcap (false),
     verbose (true)
 {
 }
@@ -97,7 +97,7 @@ void Topology::Run ()
 {
     CreateNodes ();
     CreateDevices ();
-    ConfigureBaseStations ();
+    //ConfigureBaseStations ();
     InstallInternetStack ();
     InstallApplications ();
 
@@ -109,6 +109,7 @@ void Topology::Run ()
 
 //	AnimationInterface::SetNodeColor (nodes.Get(0), 0, 255, 0);
 //	AnimationInterface::SetNodeColor (nodes.Get(8), 0, 0, 255);
+  AnimationInterface::SetConstantPosition (nodes.Get (50), 7.6, 198.35);
 	AnimationInterface anim ("vanet_animation.xml");
 	anim.EnablePacketMetadata (true);
     Simulator::Run ();
@@ -213,16 +214,26 @@ void Topology::InstallInternetStack ()
 {
     InternetStackHelper stack;
     // add all stationary base station nodes to this container
-	nodes.Add (wifiApNode);
+	//nodes.Add (wifiApNode);
 	
     stack.Install (nodes);
     //stack.Install (wifiApNode.Get (0));
     Ipv4AddressHelper address;
     address.SetBase ("1.0.0.0", "255.0.0.0");
-    devices.Add(apDevices);
+    
+    // add all base station devices to this device container
+    //devices.Add(apDevices);
     interfaces = address.Assign (devices);
     //interfaceBS = address.Assign (apDevices);
     //interfaces.Add(interfaceBS);
+    
+    
+    PointToPointHelper p2pHelper;
+	p2pHelper.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
+	p2pHelper.SetChannelAttribute("Delay", StringValue("2ms"));
+	
+	NetDeviceContainer p2pDevices_AP1;
+	p2pDevices_AP1 = p2pHelper.Install(nodes.Get(0), nodes.Get(50));
 }
 
 void Topology::InstallApplications ()
@@ -256,17 +267,16 @@ void Topology::InstallApplications ()
     std::cout<<"recv node address"<<interfaces.GetAddress (1)<<std::endl;
     
     
-    
     // Below code works as 0 -49 are mobile nodes and mobile nodes are able to communicate with each other.
     
     Ptr<ClusterManager> peerSend = CreateObject<ClusterManager> ();
 	peerSend->Setup (interfaces.GetAddress (0), 9, DataRate ("1Mbps"), true);
-	nodes.Get (49)->AddApplication (peerSend);
+	nodes.Get (50)->AddApplication (peerSend);
 	peerSend->SetStartTime (Seconds (1.));
 	peerSend->SetStopTime (Seconds (10.));
 
 	Ptr<ClusterMember> peerRecv = CreateObject<ClusterMember> ();
-	peerRecv->Setup (interfaces.GetAddress (49), 9, DataRate ("1Mbps"), false);
+	peerRecv->Setup (interfaces.GetAddress (50), 9, DataRate ("1Mbps"), false);
 	nodes.Get (0)->AddApplication (peerRecv);
 	peerRecv->SetStartTime (Seconds (1.));
 	peerRecv->SetStopTime (Seconds (10.));
