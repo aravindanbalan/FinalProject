@@ -1,6 +1,6 @@
 // ./waf --run "scratch/mobTop5 --nodeNum=50 --traceFile=scratch/sc2.tcl"
 
-
+#include <stdlib.h> 
 #include "ns3/core-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/network-module.h"
@@ -12,6 +12,7 @@
 //#include "ns3/social-network.h"
 #include "ns3/clustermanager.h"
 #include "ns3/clustermember.h"
+#include "ns3/cluster.h"
 #include "ns3/flow-monitor-module.h"
 
 //XXX For anumation
@@ -37,10 +38,10 @@ CourseChange (std::ostream *myos, std::string foo, Ptr<const MobilityModel> mobi
 	<< ", z=" << vel.z << std::endl;
 }
 
-class Topology
+class Vanet
 {
 public:
-    Topology ();
+    Vanet ();
     bool Configure (int argc, char *argv[]);
     void Run ();
     std::string logFile;
@@ -50,9 +51,15 @@ public:
 
 private:
     uint32_t nodeNum;
+    uint32_t nodeMobileNodes;
+    int numRounds;
+	int numofTopics;
     double duration;
     bool pcap;
     bool verbose;
+    Ptr<ClusterManager> baseStationApp;
+    Ptr<ClusterMember> peerRecv;
+    vector<int> masterIDs;
 
     NodeContainer nodes;
     NodeContainer wifiApNode;
@@ -67,23 +74,35 @@ private:
     void InstallInternetStack ();
     void InstallApplications ();
     void ConfigureBaseStations ();
+    void FormClusters();
+    void SendToMasterOfEachCluster();
 };
 
-Topology::Topology (): nodeNum (51), duration (300.0), pcap (false),
-    verbose (true)
+int randomNumberGenerator(int numTopics)
 {
+		int v1 = rand() % numTopics; 
+		return v1;
 }
 
-bool Topology::Configure (int argc, char *argv[])
+Vanet::Vanet (): nodeNum (51), numRounds (5), numofTopics (7), duration (300.0), pcap (false),
+    verbose (true)
+{
+	nodeMobileNodes = nodeNum - 1;
+}
+
+bool Vanet::Configure (int argc, char *argv[])
 {
     CommandLine cmd;
 
     cmd.AddValue ("nodeNum", "Number of nodes.", nodeNum);
     cmd.AddValue ("duration", "Simulation time in sec.", duration);
+    cmd.AddValue ("numRounds", "Number of rounds to perform", numRounds);
+    cmd.AddValue ("numofTopics", "Number of topics of interest", numofTopics);
     cmd.AddValue ("traceFile", "NS3 mobility trace.", traceFile);
     cmd.AddValue ("logFile", "Log file", logFile);
     cmd.AddValue ("verbose", "Tell application to log if true", verbose);
 
+	nodeMobileNodes = nodeNum - 1;
     if (verbose)
     {
         LogComponentEnable ("ClusterManager", LOG_LEVEL_INFO);
@@ -93,7 +112,7 @@ bool Topology::Configure (int argc, char *argv[])
     return true;
 }
 
-void Topology::Run ()
+void Vanet::Run ()
 {
     CreateNodes ();
     CreateDevices ();
@@ -107,9 +126,7 @@ void Topology::Run ()
 
     Simulator::Stop (Seconds (duration));
 
-//	AnimationInterface::SetNodeColor (nodes.Get(0), 0, 255, 0);
-//	AnimationInterface::SetNodeColor (nodes.Get(8), 0, 0, 255);
-  AnimationInterface::SetConstantPosition (nodes.Get (50), 7.6, 198.35);
+	AnimationInterface::SetConstantPosition (nodes.Get (50), 7.6, 198.35);
 	AnimationInterface anim ("vanet_animation.xml");
 	anim.EnablePacketMetadata (true);
     Simulator::Run ();
@@ -118,9 +135,7 @@ void Topology::Run ()
     Simulator::Destroy ();
 }
 
-// XXX: I am thinking that we can create a sepreate set of nodes for each community
-//      and set up a different mobility trace for each community
-void Topology::CreateNodes ()
+void Vanet::CreateNodes ()
 {
     Ns2MobilityHelper mob = Ns2MobilityHelper (traceFile);
     myos.open (logFile.c_str ());
@@ -131,7 +146,7 @@ void Topology::CreateNodes ()
 		   MakeBoundCallback (&CourseChange, &myos));
 }
 
-void Topology::CreateDevices ()
+void Vanet::CreateDevices ()
 {
     std::string phyMode ("OfdmRate54Mbps");
 
@@ -168,8 +183,8 @@ void Topology::CreateDevices ()
     }
     
 }
-
-void Topology::ConfigureBaseStations ()
+/*
+void Vanet::ConfigureBaseStations ()
 {
    std::string phyMode ("OfdmRate54Mbps");
 
@@ -209,65 +224,28 @@ void Topology::ConfigureBaseStations ()
 
 	apDevices = wifi.Install (phy, mac, wifiApNode); 
 }
-
-void Topology::InstallInternetStack ()
+*/
+void Vanet::InstallInternetStack ()
 {
     InternetStackHelper stack;
-    // add all stationary base station nodes to this container
-	//nodes.Add (wifiApNode);
 	
     stack.Install (nodes);
-    //stack.Install (wifiApNode.Get (0));
     Ipv4AddressHelper address;
     address.SetBase ("1.0.0.0", "255.0.0.0");
-    
-    // add all base station devices to this device container
-    //devices.Add(apDevices);
+
     interfaces = address.Assign (devices);
-    //interfaceBS = address.Assign (apDevices);
-    //interfaces.Add(interfaceBS);
-    
-    
-    PointToPointHelper p2pHelper;
-	p2pHelper.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
-	p2pHelper.SetChannelAttribute("Delay", StringValue("2ms"));
-	
-	NetDeviceContainer p2pDevices_AP1;
-	p2pDevices_AP1 = p2pHelper.Install(nodes.Get(0), nodes.Get(50));
+ 
 }
 
-void Topology::InstallApplications ()
+void Vanet::InstallApplications ()
 {
-	/*
-    Ptr<ClusterMember> app[nodeNum];
-    std::cout<<"Base station address : "<<interfaceBS.GetAddress (0)<<std::endl;
-    for (uint32_t i =0; i < nodeNum; i++)
-    {   
-        app[i] = CreateObject<ClusterMember> ();
-        // false - receiver nodes
-        
-        app[i]->Setup (interfaceBS.GetAddress (0), 9, DataRate ("1Mbps"), false);
-        nodes.Get (i)->AddApplication (app[i]);
-        //app[i]->SetStartTime (Seconds (0.5 + 0.0001*i));
-        app[i]->SetStartTime (Seconds (0.5));
-        app[i]->SetStopTime (Seconds (300.));
-    }
-    
-    Ptr<ClusterManager> BSApp;
-    BSApp = CreateObject<ClusterManager> ();
-    BSApp->Setup (interfaces.GetAddress (25), 9, DataRate ("1Mbps"), true);
-    std::cout<<"BS sending to address : "<<interfaces.GetAddress (25)<<std::endl;
-    wifiApNode.Get (0)->AddApplication (BSApp);
-    BSApp->SetStartTime (Seconds (0.7));
-    BSApp->SetStopTime (Seconds (10.));
-    * 
-    * */
-    
+	
     std::cout<<"BS address"<<interfaces.GetAddress (50)<<std::endl;
     std::cout<<"recv node address"<<interfaces.GetAddress (1)<<std::endl;
     
-    
-    // Below code works as 0 -49 are mobile nodes and mobile nodes are able to communicate with each other.
+    FormClusters();
+    SendToMasterOfEachCluster();  
+   /* 
     
     Ptr<ClusterManager> peerSend = CreateObject<ClusterManager> ();
 	peerSend->Setup (interfaces.GetAddress (0), 9, DataRate ("1Mbps"), true);
@@ -280,27 +258,86 @@ void Topology::InstallApplications ()
 	nodes.Get (0)->AddApplication (peerRecv);
 	peerRecv->SetStartTime (Seconds (1.));
 	peerRecv->SetStopTime (Seconds (10.));
-	
-	/* **********************************************************************
-	// Below code doesnt works as 0 is not reachable from 50(NS) are mobile nodes and mobile nodes are able to communicate with each other.
-    
-    Ptr<ClusterManager> peerSend = CreateObject<ClusterManager> ();
-	peerSend->Setup (interfaces.GetAddress (0), 9, DataRate ("1Mbps"), true);
-	nodes.Get (49)->AddApplication (peerSend);
-	peerSend->SetStartTime (Seconds (1.));
-	peerSend->SetStopTime (Seconds (10.));
-
-	Ptr<ClusterMember> peerRecv = CreateObject<ClusterMember> ();
-	peerRecv->Setup (interfaces.GetAddress (49), 9, DataRate ("1Mbps"), false);
-	nodes.Get (0)->AddApplication (peerRecv);
-	peerRecv->SetStartTime (Seconds (1.));
-	peerRecv->SetStopTime (Seconds (10.));
+	*/
 	
 	
-	*/ 
 }
 
-void Topology::PrintNames ()
+void Vanet::FormClusters ()
+{
+	
+	int numApps = nodes.Get (50)->GetNApplications();
+	if(numApps < 1)
+		 baseStationApp = CreateObject<ClusterManager> ();
+	
+	else 
+		 baseStationApp = nodes.Get (50)->GetObject<ClusterManager> ();
+		
+	for(uint32_t nodeInd = 0; nodeInd < nodeMobileNodes ; nodeInd ++)
+	{
+		int random_topic_id = randomNumberGenerator(numofTopics); 
+		//cout<< random_topic_id << endl;
+		//put all nodes in some cluster based on the topic of interest
+		//cout<<"In cluster number................ : "<< baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) << endl;
+		
+		if(baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) != -999){
+			baseStationApp->leave_Cluster(nodes.Get(nodeInd), nodeInd);
+		}
+			
+		baseStationApp->join_Cluster(nodes.Get(nodeInd), nodeInd, random_topic_id);
+		cout<<"In cluster number : "<< baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) << endl;
+		//cout << "Is Master : " << baseStationApp->isMaster(nodes.Get(nodeInd)) << endl;
+		//cout<< endl;
+	}
+	
+	cout << "Total number of clusters formed : " << baseStationApp->getNumberOfClusters() << endl;
+	
+	if(numApps < 1)
+		nodes.Get (50)->AddApplication (baseStationApp);
+}
+
+void Vanet::SendToMasterOfEachCluster ()
+{
+	
+	int numClusters = baseStationApp->getNumberOfClusters();
+	cout << "Inside send master : " << numClusters << endl;
+	peerRecv = CreateObject<ClusterMember> ();
+	
+	for(int clusterID = 0 ; clusterID < numClusters ; clusterID++)
+	{
+		int masterNodeID = baseStationApp->getMasterNodeIDFromCluster(clusterID);
+		cout<<"Cluster ID : "<<clusterID << " , master node : "<<masterNodeID<<endl;
+		
+		/*
+		baseStationApp->Setup (interfaces.GetAddress (masterNodeID), 9, DataRate ("1Mbps"), true);
+		baseStationApp->SetStartTime (Seconds (1.0 + 0.0001*clusterID ));
+		baseStationApp->SetStopTime (Seconds (10.));
+	
+		peerRecv->Setup (interfaces.GetAddress (50), 9, DataRate ("1Mbps"), false);
+		masterNode->AddApplication (peerRecv);
+		peerRecv->SetStartTime (Seconds (1.0 + 0.0001*clusterID));
+		peerRecv->SetStopTime (Seconds (5.));
+		*/
+		
+		//form the vector to include in the packet header
+		masterIDs.push_back(masterNodeID);
+	}
+	
+	baseStationApp->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), true);
+	baseStationApp->SetStartTime (Seconds (1. ));
+	baseStationApp->SetStopTime (Seconds (10.));
+
+	peerRecv->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false);
+	
+	for(uint32_t i=0;i<nodeMobileNodes ; i++)
+	{
+		nodes.Get (i)->AddApplication (peerRecv);
+		peerRecv->SetStartTime (Seconds (1.));
+		peerRecv->SetStopTime (Seconds (10.));
+	}	
+}
+
+void Vanet::PrintNames ()
 {
     for (uint32_t i=0; i< nodeNum; i++)
         std::cout << Names::FindName (nodes.Get(i)) << std::endl;
@@ -308,7 +345,7 @@ void Topology::PrintNames ()
 
 int main (int argc, char *argv[])
 {
-    Topology test;
+    Vanet test;
     if (! test.Configure (argc, argv))
         NS_FATAL_ERROR ("Configuration failed. Aborted.");
 

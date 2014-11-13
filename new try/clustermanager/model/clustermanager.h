@@ -16,20 +16,22 @@
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/log.h"
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <string>
+#include <cstdlib>
+#include "ns3/cluster.h"
 
 namespace ns3 {
 
 /* ... */
 
+using namespace std;
 class Socket;
 
 class ClusterManager : public Application
 {
-	public:
-		ClusterManager ();
-		virtual ~ClusterManager ();
-		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend);
-
 	private:
 		// Functions
 		virtual void StartApplication (void);
@@ -51,6 +53,55 @@ class ClusterManager : public Application
 		
 		DataRate dataRate;
 		EventId sendEvent;
+		
+		static int numClusters;
+		static bool instanceFlag;
+		//cluster node to send and receive packets
+		Ptr<Node> clusterMgrNode;
+		//Ptr<Socket> clusterMgrSocket;
+		NodeContainer clusterMgrNodeContainer;
+		/////////
+		static ClusterManager *clusterMgr;
+		std::map<int, Cluster*> clusterMap;
+		std::map<Ptr<Node>, int > nodeClusterIDAssociationMap;
+		std::map<int, int > topicClusterIDAssociationMap;
+		std::map<Ptr<Node>, int > nodeNodeIDAssociationMap;
+		static TypeId tid;
+		
+		
+	public:
+		virtual ~ClusterManager ();
+		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend);
+		void join_Cluster(Ptr<Node> node, int nodeID, int topic);
+		void leave_Cluster(Ptr<Node> node, int nodeID);
+		Cluster* createNewCluster(int clusterID, int topic); 
+		//void choose_Master(int clusterid);		---- have to do later in second phase
+		bool isMaster(Ptr<Node> node);
+		static ClusterManager* getInstance();
+		int getNumberOfClusters();
+		int getClusterIDFromTopic(int topic);
+		int getClusterIDFromNode(Ptr<Node> node);
+		void putClusterIDForTopic(int topic, int clusterID);
+		void putClusterIDForNode( Ptr<Node> node, int clusterID); 
+		void removeClusterIDForNode(Ptr<Node> node);
+		void removeClusterIDForTopic(int topic);
+		void removeClusterIDFromClusterMap(int clusterID);
+		
+		Cluster* getClusterFromClusterID(int clusterID);
+		void putClusterForClusterID(int clusterID, Cluster* cluster);	
+		NodeContainer getNodeContainer();
+		void setNodeContainer(NodeContainer nodeC);
+		Ptr<Node> getClusterMgrNode();
+		void setClusterMgrNode(Ptr<Node> node);
+		//Ptr<Socket> getClusterMgrSocket();
+		//void setClusterMgrSocket(Ptr<Node> node);
+		int getNodeIDForNode(Ptr<Node> node);
+		void setNodeIDForNode(Ptr<Node> node, int nodeID);
+		void eraseAllMaps();
+		ClusterManager();
+		int getMasterNodeIDFromCluster(int clusterID);
+
+		
 };
 
 }

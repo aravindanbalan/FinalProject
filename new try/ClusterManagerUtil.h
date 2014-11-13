@@ -10,7 +10,7 @@
 using namespace ns3;
 using namespace std;
  
-class ClusterManagerUtil{
+class ClusterManager{
 	
 	private:
 		static int numClusters;
@@ -20,13 +20,13 @@ class ClusterManagerUtil{
 		//Ptr<Socket> clusterMgrSocket;
 		NodeContainer clusterMgrNodeContainer;
 		/////////
-		static ClusterManagerUtil *clusterMgr;
+		static ClusterManager *clusterMgr;
 		map<int, Cluster*> clusterMap;
 		map<Ptr<Node>, int > nodeClusterIDAssociationMap;
 		map<int, int > topicClusterIDAssociationMap;
 		map<Ptr<Node>, int > nodeNodeIDAssociationMap;
 		static TypeId tid;
-		ClusterManagerUtil()
+		ClusterManager()
 		{
 		 //private constructor
 		}
@@ -38,7 +38,7 @@ class ClusterManagerUtil{
 		Cluster* createNewCluster(int clusterID, int topic); 
 		//void choose_Master(int clusterid);		---- have to do later in second phase
 		bool isMaster(Ptr<Node> node);
-		static ClusterManagerUtil* getInstance();
+		static ClusterManager* getInstance();
 		int getNumberOfClusters();
 		int getClusterIDFromTopic(int topic);
 		int getClusterIDFromNode(Ptr<Node> node);
@@ -61,7 +61,7 @@ class ClusterManagerUtil{
 		void eraseAllMaps();
 		
 		
-        ~ClusterManagerUtil()
+        ~ClusterManager()
         {
 			instanceFlag = false;
 			numClusters = 0;
@@ -69,16 +69,16 @@ class ClusterManagerUtil{
 		
 };
 
-bool ClusterManagerUtil::instanceFlag = false;
-int ClusterManagerUtil::numClusters = 0;
-TypeId ClusterManagerUtil::tid;
-ClusterManagerUtil* ClusterManagerUtil::clusterMgr = NULL;
+bool ClusterManager::instanceFlag = false;
+int ClusterManager::numClusters = 0;
+TypeId ClusterManager::tid;
+ClusterManager* ClusterManager::clusterMgr = NULL;
 
-ClusterManagerUtil* ClusterManagerUtil::getInstance()
+ClusterManager* ClusterManager::getInstance()
 {
 	if(!instanceFlag)
         {		
-		clusterMgr = new ClusterManagerUtil();
+		clusterMgr = new ClusterManager();
 		instanceFlag = true;
 		numClusters = 0;
 		tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
@@ -87,18 +87,18 @@ ClusterManagerUtil* ClusterManagerUtil::getInstance()
     
 }	
 
-int ClusterManagerUtil::getNumberOfClusters(){
+int ClusterManager::getNumberOfClusters(){
 	return numClusters;
 }
 
-int ClusterManagerUtil::getClusterIDFromTopic(int topic){
+int ClusterManager::getClusterIDFromTopic(int topic){
 	
 	map<int,int>::iterator p;
 	p = topicClusterIDAssociationMap.find(topic);
 	return p->second;
 }
 
-int ClusterManagerUtil::getClusterIDFromNode(Ptr<Node> node){
+int ClusterManager::getClusterIDFromNode(Ptr<Node> node){
 
 	map<Ptr<Node>,int>::iterator p;
 	p = nodeClusterIDAssociationMap.find(node);
@@ -114,7 +114,7 @@ int ClusterManagerUtil::getClusterIDFromNode(Ptr<Node> node){
 	
 }
 
-void ClusterManagerUtil::putClusterIDForTopic(int topic, int clusterID){
+void ClusterManager::putClusterIDForTopic(int topic, int clusterID){
 	
 	map<int,int>::iterator p;
 	p = topicClusterIDAssociationMap.find(topic);
@@ -124,7 +124,7 @@ void ClusterManagerUtil::putClusterIDForTopic(int topic, int clusterID){
 	topicClusterIDAssociationMap.insert(pair<int,int>(topic,clusterID));
 }
 
-void ClusterManagerUtil::putClusterIDForNode(Ptr<Node> node, int clusterID){
+void ClusterManager::putClusterIDForNode(Ptr<Node> node, int clusterID){
 	
 	map<Ptr<Node>,int>::iterator p;
 	p = nodeClusterIDAssociationMap.find(node);
@@ -134,14 +134,14 @@ void ClusterManagerUtil::putClusterIDForNode(Ptr<Node> node, int clusterID){
 	nodeClusterIDAssociationMap.insert(pair<Ptr<Node>,int>(node,clusterID));
 }	
 
-Cluster* ClusterManagerUtil::getClusterFromClusterID(int clusterID){
+Cluster* ClusterManager::getClusterFromClusterID(int clusterID){
 	
 	map<int, Cluster* >::iterator p;
 	p = clusterMap.find(clusterID);
 	return p->second;
 }
 
-void ClusterManagerUtil::putClusterForClusterID(int clusterID, Cluster* cluster){
+void ClusterManager::putClusterForClusterID(int clusterID, Cluster* cluster){
 	
 	map<int, Cluster* >::iterator p;
 	p = clusterMap.find(clusterID);
@@ -151,13 +151,13 @@ void ClusterManagerUtil::putClusterForClusterID(int clusterID, Cluster* cluster)
 		clusterMap.insert(pair<int,Cluster* >(clusterID,cluster));
 }
 
-Cluster* ClusterManagerUtil::createNewCluster(int clusterID, int topic){
+Cluster* ClusterManager::createNewCluster(int clusterID, int topic){
 	
 	Cluster* newCluster = new Cluster(clusterID, topic);
 	return newCluster;
 }
 
-void ClusterManagerUtil::join_Cluster(Ptr<Node> node, int nodeID, int topic){
+void ClusterManager::join_Cluster(Ptr<Node> node, int nodeID, int topic){
 	
 	map<int, int>::iterator p;
 	p = topicClusterIDAssociationMap.find(topic);
@@ -194,7 +194,7 @@ void ClusterManagerUtil::join_Cluster(Ptr<Node> node, int nodeID, int topic){
 
 }
 
-void ClusterManagerUtil::leave_Cluster(Ptr<Node> node, int nodeID){
+void ClusterManager::leave_Cluster(Ptr<Node> node, int nodeID){
 	
 	int clusterID = getClusterIDFromNode(node);
 	if(clusterID != -999)
@@ -214,7 +214,7 @@ void ClusterManagerUtil::leave_Cluster(Ptr<Node> node, int nodeID){
 	}
 }
 
-bool ClusterManagerUtil::isMaster(Ptr<Node> node){
+bool ClusterManager::isMaster(Ptr<Node> node){
 	
 	int clusterID = getClusterIDFromNode(node);
 	Cluster* cluster = getClusterFromClusterID(clusterID);
@@ -222,44 +222,44 @@ bool ClusterManagerUtil::isMaster(Ptr<Node> node){
 }
 
 
-NodeContainer ClusterManagerUtil::getNodeContainer(){
+NodeContainer ClusterManager::getNodeContainer(){
 	
 	return clusterMgrNodeContainer;
 }
 
-void ClusterManagerUtil::setNodeContainer(NodeContainer nodeC){
+void ClusterManager::setNodeContainer(NodeContainer nodeC){
 	
 	clusterMgrNodeContainer = nodeC;
 	setClusterMgrNode(nodeC.Get (0));
 }
 
-Ptr<Node> ClusterManagerUtil::getClusterMgrNode(){
+Ptr<Node> ClusterManager::getClusterMgrNode(){
 	
 	return clusterMgrNode;
 }
 
-void ClusterManagerUtil::setClusterMgrNode(Ptr<Node> node){
+void ClusterManager::setClusterMgrNode(Ptr<Node> node){
 	
 	clusterMgrNode = node;
 	//setClusterMgrSocket(node);
 }
 /*
-Ptr<Socket> ClusterManagerUtil::getClusterMgrSocket(){
+Ptr<Socket> ClusterManager::getClusterMgrSocket(){
 	
 	return clusterMgrSocket;
 }
-void ClusterManagerUtil::setClusterMgrSocket(Ptr<Node> node){
+void ClusterManager::setClusterMgrSocket(Ptr<Node> node){
 	
 	 clusterMgrSocket = Socket::CreateSocket (node, tid);
 }
 */
-int ClusterManagerUtil::getNodeIDForNode(Ptr<Node> node){
+int ClusterManager::getNodeIDForNode(Ptr<Node> node){
 	
 	map<Ptr<Node>, int >::iterator p;
 	p = nodeNodeIDAssociationMap.find(node);
 	return p->second;
 }
-void ClusterManagerUtil::setNodeIDForNode(Ptr<Node> node, int nodeID){
+void ClusterManager::setNodeIDForNode(Ptr<Node> node, int nodeID){
 	
 	map<Ptr<Node>, int >::iterator p;
 	p = nodeNodeIDAssociationMap.find(node);
@@ -269,7 +269,7 @@ void ClusterManagerUtil::setNodeIDForNode(Ptr<Node> node, int nodeID){
 		nodeNodeIDAssociationMap.insert(pair<Ptr<Node>,int>(node,nodeID));
 }
 
-void ClusterManagerUtil::eraseAllMaps(){
+void ClusterManager::eraseAllMaps(){
 	
 	 map<int, Cluster*>::iterator p;
 	 clusterMap.erase ( p, clusterMap.end() );
@@ -282,15 +282,15 @@ void ClusterManagerUtil::eraseAllMaps(){
 	 
 }
 
-void ClusterManagerUtil::removeClusterIDForNode(Ptr<Node> node){
+void ClusterManager::removeClusterIDForNode(Ptr<Node> node){
 	
 	nodeClusterIDAssociationMap.erase(node);
 }
-void ClusterManagerUtil::removeClusterIDForTopic(int topic){
+void ClusterManager::removeClusterIDForTopic(int topic){
 	
 	topicClusterIDAssociationMap.erase(topic); 
 }
-void ClusterManagerUtil::removeClusterIDFromClusterMap(int clusterID){
+void ClusterManager::removeClusterIDFromClusterMap(int clusterID){
 	
 	clusterMap.erase(clusterID); 
 	numClusters--;
