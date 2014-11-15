@@ -71,14 +71,14 @@ private:
 
 private:
     void CreateNodes ();
+    void Callback ();
     void CreateDevices ();
     void InstallInternetStack ();
     void InstallApplications ();
     void ConfigureBaseStations ();
-    void performRound(int round);
-    void FormClusters(int round);
-    void SendToMasterOfEachCluster(int round);
-    void DistributePacketFromMasterToPeers();
+    void performRound(int round,int round_duration, int round_start, int round_end);
+    void FormClusters(int round,int round_duration, int round_start, int round_end);
+    void SendToMasterOfEachCluster(int round,int round_duration, int round_start, int round_end);
     void ChooseMaster(Ptr<ClusterManager> baseStationApp, int round);
 };
 
@@ -204,8 +204,24 @@ void Vanet::InstallApplications ()
 {
 
 	// do this for many rounds
-		performRound(1);
-    
+		int round_duration = duration/numRounds;
+		int round_start = 1;
+		int round_end = round_duration;
+		
+		int round = 1;
+		//for(round = 1; round <= numRounds ; round++ )
+		{
+			cout<<"Round duration : "<<round_duration<<endl;
+			cout<<"Round start : "<<round_start<<endl;
+			cout<<"Round end : "<<round_end<<endl;
+			if(round > 1)
+			{
+				round_start += round_duration;
+				round_end += round_duration;
+			}
+		
+			performRound(round,round_duration, round_start, round_end);
+		}
     
    /* 
     
@@ -225,9 +241,14 @@ void Vanet::InstallApplications ()
 	
 }
 
-void Vanet::performRound(int round)
+void Vanet::Callback (){
+	
+	cout<<"Inside callback";
+}
+
+void Vanet::performRound(int round, int round_duration, int round_start, int round_end)
 {
-	FormClusters(round);
+	FormClusters(round, round_duration, round_start, round_end);
 }
 void Vanet::ChooseMaster(Ptr<ClusterManager> baseStationApp, int round)
 {
@@ -244,7 +265,7 @@ void Vanet::ChooseMaster(Ptr<ClusterManager> baseStationApp, int round)
 }
 
 
-void Vanet::FormClusters (int round)
+void Vanet::FormClusters (int round, int round_duration, int round_start, int round_end)
 {
 	
 	int numApps = nodes.Get (50)->GetNApplications();
@@ -262,7 +283,7 @@ void Vanet::FormClusters (int round)
 				int random_topic_id = randomNumberGenerator(numofTopics); 
 				
 				if(baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) != -999){
-					baseStationApp->leave_Cluster(nodes.Get(nodeInd), nodeInd);
+				//	baseStationApp->leave_Cluster(nodes.Get(nodeInd), nodeInd);
 				}
 					
 				baseStationApp->join_Cluster(nodes.Get(nodeInd), nodeInd, random_topic_id);
@@ -278,10 +299,10 @@ void Vanet::FormClusters (int round)
 		nodes.Get (50)->AddApplication (baseStationApp);
 		
 		
-	SendToMasterOfEachCluster(round); 	
+	SendToMasterOfEachCluster(round, round_duration , round_start, round_end); 	
 }
 
-void Vanet::SendToMasterOfEachCluster (int round)
+void Vanet::SendToMasterOfEachCluster (int round , int round_duration, int round_start, int round_end)
 {
 	
 	int numClusters = baseStationApp->getNumberOfClusters();
@@ -306,8 +327,8 @@ void Vanet::SendToMasterOfEachCluster (int round)
 	packet_type = 1;
 	
 	baseStationApp->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), true, true, packet_type);
-	baseStationApp->SetStartTime (Seconds (1. ));
-	baseStationApp->SetStopTime (Seconds (30.));
+	baseStationApp->SetStartTime (Seconds (round_start ));
+	baseStationApp->SetStopTime (Seconds (round_end));
 
 	/*
 	for(uint32_t i=0;i<nodeMobileNodes ; i++)
@@ -322,10 +343,10 @@ void Vanet::SendToMasterOfEachCluster (int round)
 	
 	for(std::vector<int>::size_type i = 0; i != masterIDs.size(); i++) {
 		masters[i] = CreateObject<ClusterMember> ();
-		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes,interfaces, 0);
+		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes,interfaces, 0, round_start, round_end);
 		nodes.Get (masterIDs[i])->AddApplication (masters[i]);
-		masters[i]->SetStartTime (Seconds (1.));
-		masters[i]->SetStopTime (Seconds (30.));		
+		masters[i]->SetStartTime (Seconds (round_start));
+		masters[i]->SetStopTime (Seconds (round_end));		
 	}
 	
 }

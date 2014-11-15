@@ -133,7 +133,7 @@ using namespace std;
 
 	}
 
-	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, Ipv4InterfaceContainer interf,int pkt_type)
+	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, Ipv4InterfaceContainer interf,int pkt_type, int round_start, int round_end)
 	{
 		peerAddress = address;
 		nodeID = nodeid;
@@ -145,6 +145,8 @@ using namespace std;
 		slaveStr = slaveString;
 		nodes = nodesC;
 		interfaces = interf;
+		roundStart = round_start;
+		roundEnd = round_end;
 	}
 
 	int readPacketTag(Ptr<Packet> packet)
@@ -214,18 +216,18 @@ using namespace std;
 					int slaveID = atoi(slave.c_str());
 					
 					masterApp[i] = CreateObject<ClusterMember> ();
-					masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,packet_type);
+					masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,packet_type,roundStart, roundEnd );
 					nodes.Get(nodeID)->AddApplication (masterApp[i]);
 				
-					masterApp[i]->SetStartTime (Seconds (1. ));
-					masterApp[i]->SetStopTime (Seconds (30.));
+					masterApp[i]->SetStartTime (Seconds (roundStart ));
+					masterApp[i]->SetStopTime (Seconds (roundEnd));
 					
 					peers[i] = CreateObject<ClusterMember> ();
 					int packet_type = 0;
-					peers[i]->Setup (interfaces.GetAddress (nodeID), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,packet_type);
+					peers[i]->Setup (interfaces.GetAddress (nodeID), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,packet_type, roundStart, roundEnd);
 					nodes.Get(slaveID)->AddApplication (peers[i]);
-					peers[i]->SetStartTime (Seconds (1. ));
-					peers[i]->SetStopTime (Seconds (30.));
+					peers[i]->SetStartTime (Seconds (roundStart ));
+					peers[i]->SetStopTime (Seconds (roundEnd));
 					
 				//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
 				}
@@ -235,6 +237,7 @@ using namespace std;
 				
 				std::cout<<"..........Slave recev node  : "<< nodeID << std::endl;
 				//std::cout<<"..........Slave recev node  : "<< slaveStr << std::endl;
+			
 				
 			}
 		}
