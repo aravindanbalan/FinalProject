@@ -75,9 +75,11 @@ private:
     void InstallInternetStack ();
     void InstallApplications ();
     void ConfigureBaseStations ();
-    void FormClusters();
-    void SendToMasterOfEachCluster();
+    void performRound(int round);
+    void FormClusters(int round);
+    void SendToMasterOfEachCluster(int round);
     void DistributePacketFromMasterToPeers();
+    void ChooseMaster(Ptr<ClusterManager> baseStationApp, int round);
 };
 
 int randomNumberGenerator(int numTopics)
@@ -185,48 +187,7 @@ void Vanet::CreateDevices ()
     }
     
 }
-/*
-void Vanet::ConfigureBaseStations ()
-{
-   std::string phyMode ("OfdmRate54Mbps");
 
-    // disable fragmentation for frames below 2200 bytes
-    Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
-    // turn off RTS/CTS for frames below 2200 bytes
-    Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
-    // Fix non-unicast data rate to be the same as that of unicast
-    Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
-
-    
-    YansWifiChannelHelper channel = YansWifiChannelHelper::Default ();
-    channel.AddPropagationLoss("ns3::RangePropagationLossModel",
-                               "MaxRange", DoubleValue(5000.0)); //XXX
-   
-
-    YansWifiPhyHelper phy = YansWifiPhyHelper::Default ();
-    phy.SetChannel (channel.Create ());
-
-    WifiHelper wifi = WifiHelper::Default ();
-    wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                  "DataMode",StringValue (phyMode),
-                                  "ControlMode",StringValue (phyMode));
-    
-    NqosWifiMacHelper mac = NqosWifiMacHelper::Default ();
-
-    mac.SetType ("ns3::AdhocWifiMac");
-
-	wifiApNode.Create (1);
-	
-	MobilityHelper	mobility;	
-	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();	
-	positionAlloc->Add(Vector(5.0,190.0,0.0));	
-	mobility.SetPositionAllocator(positionAlloc);	
-	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");	
-	mobility.Install (wifiApNode); 
-
-	apDevices = wifi.Install (phy, mac, wifiApNode); 
-}
-*/
 void Vanet::InstallInternetStack ()
 {
     InternetStackHelper stack;
@@ -241,12 +202,11 @@ void Vanet::InstallInternetStack ()
 
 void Vanet::InstallApplications ()
 {
-	
-    std::cout<<"BS address"<<interfaces.GetAddress (50)<<std::endl;
-    std::cout<<"recv node address"<<interfaces.GetAddress (1)<<std::endl;
+
+	// do this for many rounds
+		performRound(1);
     
-    FormClusters();
-    SendToMasterOfEachCluster(); 
+    
    /* 
     
     Ptr<ClusterManager> peerSend = CreateObject<ClusterManager> ();
@@ -265,7 +225,26 @@ void Vanet::InstallApplications ()
 	
 }
 
-void Vanet::FormClusters ()
+void Vanet::performRound(int round)
+{
+	FormClusters(round);
+}
+void Vanet::ChooseMaster(Ptr<ClusterManager> baseStationApp, int round)
+{
+	cout<<"Choosing master for round : "<<round<<endl;
+	
+	int numClusters = baseStationApp->getNumberOfClusters();
+	for(int clusterID = 0 ; clusterID < numClusters ; clusterID++)
+	{
+		baseStationApp->choose_Master(clusterID);
+		int masterNodeID = baseStationApp->getMasterNodeIDFromCluster(clusterID);
+		cout<<"Master in cluster : "<<clusterID << " is : "<<masterNodeID<<endl;
+	}
+	
+}
+
+
+void Vanet::FormClusters (int round)
 {
 	
 	int numApps = nodes.Get (50)->GetNApplications();
@@ -274,31 +253,35 @@ void Vanet::FormClusters ()
 	
 	else 
 		 baseStationApp = nodes.Get (50)->GetObject<ClusterManager> ();
-		
-	for(uint32_t nodeInd = 0; nodeInd < nodeMobileNodes ; nodeInd ++)
-	{
-		int random_topic_id = randomNumberGenerator(numofTopics); 
-		//cout<< random_topic_id << endl;
-		//put all nodes in some cluster based on the topic of interest
-		//cout<<"In cluster number................ : "<< baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) << endl;
-		
-		if(baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) != -999){
-			baseStationApp->leave_Cluster(nodes.Get(nodeInd), nodeInd);
-		}
-			
-		baseStationApp->join_Cluster(nodes.Get(nodeInd), nodeInd, random_topic_id);
-		cout<<"In cluster number : "<< baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) << endl;
-		//cout << "Is Master : " << baseStationApp->isMaster(nodes.Get(nodeInd)) << endl;
-		//cout<< endl;
+	
+	if(round == 1)	// choose random topic only for first round, for other rounds choose a different the master
+	{	 	 	
+		for(uint32_t nodeInd = 0; nodeInd < nodeMobileNodes ; nodeInd ++)
+		{
+
+				int random_topic_id = randomNumberGenerator(numofTopics); 
+				
+				if(baseStationApp->getClusterIDFromNode(nodes.Get(nodeInd)) != -999){
+					baseStationApp->leave_Cluster(nodes.Get(nodeInd), nodeInd);
+				}
+					
+				baseStationApp->join_Cluster(nodes.Get(nodeInd), nodeInd, random_topic_id);
+				
+		}	
 	}
+	
+	ChooseMaster(baseStationApp, round);
 	
 	cout << "Total number of clusters formed : " << baseStationApp->getNumberOfClusters() << endl;
 	
 	if(numApps < 1)
 		nodes.Get (50)->AddApplication (baseStationApp);
+		
+		
+	SendToMasterOfEachCluster(round); 	
 }
 
-void Vanet::SendToMasterOfEachCluster ()
+void Vanet::SendToMasterOfEachCluster (int round)
 {
 	
 	int numClusters = baseStationApp->getNumberOfClusters();
@@ -324,7 +307,7 @@ void Vanet::SendToMasterOfEachCluster ()
 	
 	baseStationApp->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), true, true, packet_type);
 	baseStationApp->SetStartTime (Seconds (1. ));
-	baseStationApp->SetStopTime (Seconds (300.));
+	baseStationApp->SetStopTime (Seconds (30.));
 
 	/*
 	for(uint32_t i=0;i<nodeMobileNodes ; i++)
@@ -337,20 +320,15 @@ void Vanet::SendToMasterOfEachCluster ()
 	}
 	*/	
 	
-	//getSlaveNodesFromCluster(clusterID);
-	
 	for(std::vector<int>::size_type i = 0; i != masterIDs.size(); i++) {
-
-    /* std::cout << *it; ... */
 		masters[i] = CreateObject<ClusterMember> ();
-		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes, 0);
+		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes,interfaces, 0);
 		nodes.Get (masterIDs[i])->AddApplication (masters[i]);
 		masters[i]->SetStartTime (Seconds (1.));
-		masters[i]->SetStopTime (Seconds (300.));		
+		masters[i]->SetStopTime (Seconds (30.));		
 	}
 	
 }
-
 
 void Vanet::PrintNames ()
 {

@@ -42,6 +42,7 @@ class Cluster  : public Application{
 		void removeNodeFromCluster(Ptr<Node> node);
 		int getNumNodes();
 		int getTopic();	
+		void setMaster(Ptr<Node> master);
 };
 
 

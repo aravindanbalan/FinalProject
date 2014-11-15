@@ -133,7 +133,7 @@ using namespace std;
 
 	}
 
-	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, int pkt_type)
+	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, Ipv4InterfaceContainer interf,int pkt_type)
 	{
 		peerAddress = address;
 		nodeID = nodeid;
@@ -144,6 +144,7 @@ using namespace std;
 		pac_type = pkt_type;
 		slaveStr = slaveString;
 		nodes = nodesC;
+		interfaces = interf;
 	}
 
 	int readPacketTag(Ptr<Packet> packet)
@@ -182,11 +183,11 @@ using namespace std;
 		
 		while (packet = socket->RecvFrom (from))
 		{
-			std::cout << "Yes  1111------------------- Cluster Memeber from "<<from << std::endl;	
+			//std::cout << "Yes  1111------------------- Cluster Memeber from "<<from << std::endl;	
 				
-			std::cout<< "At time " << Simulator::Now ().GetSeconds () << "s peer received " << packet->GetSize () << " bytes from " <<
-					   InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
-					   InetSocketAddress::ConvertFrom (from).GetPort ()<< " recving : "<<nodeID<<std::endl;
+			//std::cout<< "At time " << Simulator::Now ().GetSeconds () << "s peer received " << packet->GetSize () << " bytes from " <<
+			//		   InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
+			//		   InetSocketAddress::ConvertFrom (from).GetPort ()<< " recving : "<<nodeID<<std::endl;
 		
 			uint8_t *buffer = new uint8_t[packet->GetSize()];
 			packet->CopyData(buffer,packet->GetSize());
@@ -194,23 +195,16 @@ using namespace std;
 			int pkt_Type = readPacketTag(packet);
 			recvpacket = packet;
 			
-			std::cout<<"..........Member received packet type : "<< pkt_Type << std::endl;
+			//std::cout<<"..........Member received packet type : "<< pkt_Type << std::endl;
 			
 			if(pkt_Type == 1)
 			{
 				std::cout<<"..........Slave string for this master node : "<< slaveStr << std::endl;
 				vector<std::string> slaves = getTokens(slaveStr);
-				Ptr<ClusterMember> masterApp;
+				Ptr<ClusterMember> masterApp[slaves.size()];
 				int packet_type = 2;
-				std::cout<<"11111"<<std::endl;
-				masterApp = CreateObject<ClusterMember> ();
-				std::cout<<"222"<<std::endl;
-				masterApp->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), true, true,nodeID,slaveStr, nodes,packet_type);
-				std::cout<<"333 "<<nodeID<<std::endl;
-				nodes.Get(nodeID)->AddApplication (masterApp);
-				std::cout<<"444"<<std::endl;
-				masterApp->SetStartTime (Seconds (1. ));
-				masterApp->SetStopTime (Seconds (300.));
+				//std::cout<<"11111"<<std::endl;
+				
 				
 				Ptr<ClusterMember> peers[slaves.size()];
 				
@@ -219,20 +213,28 @@ using namespace std;
 					std::string slave = slaves[i];
 					int slaveID = atoi(slave.c_str());
 					
+					masterApp[i] = CreateObject<ClusterMember> ();
+					masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,packet_type);
+					nodes.Get(nodeID)->AddApplication (masterApp[i]);
+				
+					masterApp[i]->SetStartTime (Seconds (1. ));
+					masterApp[i]->SetStopTime (Seconds (30.));
+					
 					peers[i] = CreateObject<ClusterMember> ();
 					int packet_type = 0;
-					peers[i]->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,packet_type);
+					peers[i]->Setup (interfaces.GetAddress (nodeID), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,packet_type);
 					nodes.Get(slaveID)->AddApplication (peers[i]);
 					peers[i]->SetStartTime (Seconds (1. ));
-					peers[i]->SetStopTime (Seconds (300.));
+					peers[i]->SetStopTime (Seconds (30.));
 					
-					std::cout<<"..........Slave  : "<< slaveID << std::endl;
+				//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
 				}
 				
 			}
 			else if(pkt_Type == 2){
 				
-				
+				std::cout<<"..........Slave recev node  : "<< nodeID << std::endl;
+				//std::cout<<"..........Slave recev node  : "<< slaveStr << std::endl;
 				
 			}
 		}

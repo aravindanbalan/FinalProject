@@ -77,7 +77,7 @@ class ClusterManager : public Application
 		void join_Cluster(Ptr<Node> node, int nodeID, int topic);
 		void leave_Cluster(Ptr<Node> node, int nodeID);
 		Cluster* createNewCluster(int clusterID, int topic); 
-		//void choose_Master(int clusterid);		---- have to do later in second phase
+		void choose_Master(int clusterid);		//---- have to do later in second phase
 		bool isMaster(Ptr<Node> node);
 		static ClusterManager* getInstance();
 		int getNumberOfClusters();

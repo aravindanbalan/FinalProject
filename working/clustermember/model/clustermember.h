@@ -27,7 +27,7 @@ class ClusterMember : public Application
 	public:
 		ClusterMember ();
 		virtual ~ClusterMember ();
-		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, std::string slaveString, NodeContainer nodesC, int pkt_type);
+		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, std::string slaveString, NodeContainer nodesC, Ipv4InterfaceContainer interf, int pkt_type);
 		Ptr<Packet> getPacket();
 
 	private:
@@ -53,6 +53,7 @@ class ClusterMember : public Application
 		Ptr<Packet> recvpacket;
 		std::string slaveStr;
 		NodeContainer nodes;
+		Ipv4InterfaceContainer interfaces;
 		int pac_type;
 		
 		DataRate dataRate;

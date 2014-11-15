@@ -26,8 +26,8 @@ void Cluster::addNodeToCluster(Ptr<Node> node){
 		//by default set the first node as master as of now
 		// instead in future use an algorithm for choosing the master which will be done by the clusterManager and not by the Cluster class
 		
-		if(numNodes == 1)
-			masterNode = node;
+	//	if(numNodes == 1)
+	//			masterNode = node;
 		
 }
 
@@ -60,28 +60,32 @@ vector < Ptr<Node> > Cluster::getNodeList(){
 	return nodeList;
 }
 
-	vector< Ptr<Node> > Cluster::getSlaveNodes(){
+vector< Ptr<Node> > Cluster::getSlaveNodes(){
 
-		vector < Ptr<Node> > slaveList = getNodeList();
-		Ptr<Node> master = getMaster();
+	vector < Ptr<Node> > slaveList = getNodeList();
+	Ptr<Node> master = getMaster();
 
-		/*
-		vector<Ptr<Node> >::iterator position = std::find(slaveList.begin(), slaveList.end(), master);	
-		if (position != slaveList.end())
-			slaveList.erase(position);
-			*/
-			
-			for(vector<Ptr<Node> >::iterator it = slaveList.begin(); it != slaveList.end(); it++)
-			{
-			  if (*it == master)
-			  {
-				slaveList.erase(it);
-				break;  //it is now invalud must break!
-			  }
-			}
-			return slaveList;
+	/*
+	vector<Ptr<Node> >::iterator position = std::find(slaveList.begin(), slaveList.end(), master);	
+	if (position != slaveList.end())
+		slaveList.erase(position);
+		*/
+		
+		for(vector<Ptr<Node> >::iterator it = slaveList.begin(); it != slaveList.end(); it++)
+		{
+		  if (*it == master)
+		  {
+			slaveList.erase(it);
+			break;  //it is now invalud must break!
+		  }
+		}
+		return slaveList;
+}
+
+	void Cluster::setMaster(Ptr<Node> master){
+		
+		masterNode = master;
 	}
-
 
 }
 

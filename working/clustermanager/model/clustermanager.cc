@@ -479,6 +479,20 @@ ClusterManager::ClusterManager ()
 		
 		return slaveString;
 	}
+	
+	void ClusterManager::choose_Master(int clusterID){
+		
+		// as of now choosing the first node as master in each cluster
+		Cluster* cluster = getClusterFromClusterID(clusterID);
+		std::vector < Ptr<Node> > clusterNodes = cluster->getNodeList();
+		
+		// setting the first node in the list to be the master
+		// replace this with the algorithm needed below
+		cluster->setMaster(clusterNodes.front());
+		
+		putClusterForClusterID(clusterID, cluster);
+		
+	}
 
 }
 
