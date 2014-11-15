@@ -24,6 +24,7 @@ class Cluster  : public Application{
 		int numNodes;
 		Ptr<Node> masterNode;
 		std::vector<Ptr<Node> > nodeList;
+		std::vector<Ptr<Node> > slaveNodes;
 	
 	public:
 	    
@@ -34,6 +35,7 @@ class Cluster  : public Application{
 			topic = top;
 		}
 		Ptr<Node> getMaster();
+		std::vector< Ptr<Node> > getSlaveNodes();
 		bool isMaster(Ptr<Node> node);
 		std::vector < Ptr<Node> > getNodeList();
 		void addNodeToCluster(Ptr<Node> node);

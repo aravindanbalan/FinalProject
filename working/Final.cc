@@ -52,14 +52,15 @@ public:
 private:
     uint32_t nodeNum;
     uint32_t nodeMobileNodes;
+    int packet_type;
     int numRounds;
 	int numofTopics;
     double duration;
     bool pcap;
     bool verbose;
     Ptr<ClusterManager> baseStationApp;
-    Ptr<ClusterMember> peerRecv[50];
     vector<int> masterIDs;
+    vector<string> slaveListStrings;
 
     NodeContainer nodes;
     NodeContainer wifiApNode;
@@ -76,6 +77,7 @@ private:
     void ConfigureBaseStations ();
     void FormClusters();
     void SendToMasterOfEachCluster();
+    void DistributePacketFromMasterToPeers();
 };
 
 int randomNumberGenerator(int numTopics)
@@ -244,7 +246,7 @@ void Vanet::InstallApplications ()
     std::cout<<"recv node address"<<interfaces.GetAddress (1)<<std::endl;
     
     FormClusters();
-    SendToMasterOfEachCluster();  
+    SendToMasterOfEachCluster(); 
    /* 
     
     Ptr<ClusterManager> peerSend = CreateObject<ClusterManager> ();
@@ -306,29 +308,25 @@ void Vanet::SendToMasterOfEachCluster ()
 	for(int clusterID = 0 ; clusterID < numClusters ; clusterID++)
 	{
 		int masterNodeID = baseStationApp->getMasterNodeIDFromCluster(clusterID);
+		string slaveString = baseStationApp->getSlaveNodeIDsFromCluster(clusterID);
 		cout<<"Cluster ID : "<<clusterID << " , master node : "<<masterNodeID<<endl;
-		
-		/*
-		baseStationApp->Setup (interfaces.GetAddress (masterNodeID), 9, DataRate ("1Mbps"), true);
-		baseStationApp->SetStartTime (Seconds (1.0 + 0.0001*clusterID ));
-		baseStationApp->SetStopTime (Seconds (10.));
-	
-		peerRecv->Setup (interfaces.GetAddress (50), 9, DataRate ("1Mbps"), false);
-		masterNode->AddApplication (peerRecv);
-		peerRecv->SetStartTime (Seconds (1.0 + 0.0001*clusterID));
-		peerRecv->SetStopTime (Seconds (5.));
-		*/
-		
+		cout<<"Cluster ID : "<<clusterID << " , Slave list : "<<slaveString<<endl;
 		//form the vector to include in the packet header
 		masterIDs.push_back(masterNodeID);
+		slaveListStrings.push_back(slaveString);
 	}
+	int numMasters = numClusters;
+	Ptr<ClusterMember> masters[numMasters];
 	
-	cout<<"Sending broadcast"<<endl;
-	baseStationApp->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), true, true);
+	cout<<"Sending broadcast to all masters"<<endl;
+	
+	packet_type = 1;
+	
+	baseStationApp->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), true, true, packet_type);
 	baseStationApp->SetStartTime (Seconds (1. ));
-	baseStationApp->SetStopTime (Seconds (10.));
+	baseStationApp->SetStopTime (Seconds (300.));
 
-	
+	/*
 	for(uint32_t i=0;i<nodeMobileNodes ; i++)
 	{
 		peerRecv[i] = CreateObject<ClusterMember> ();
@@ -336,9 +334,23 @@ void Vanet::SendToMasterOfEachCluster ()
 		nodes.Get (i)->AddApplication (peerRecv[i]);
 		peerRecv[i]->SetStartTime (Seconds (1.));
 		peerRecv[i]->SetStopTime (Seconds (10.));		
-	}	
+	}
+	*/	
+	
+	//getSlaveNodesFromCluster(clusterID);
+	
+	for(std::vector<int>::size_type i = 0; i != masterIDs.size(); i++) {
+
+    /* std::cout << *it; ... */
+		masters[i] = CreateObject<ClusterMember> ();
+		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes, 0);
+		nodes.Get (masterIDs[i])->AddApplication (masters[i]);
+		masters[i]->SetStartTime (Seconds (1.));
+		masters[i]->SetStopTime (Seconds (300.));		
+	}
 	
 }
+
 
 void Vanet::PrintNames ()
 {

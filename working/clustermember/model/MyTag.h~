@@ -151,7 +151,7 @@ MyTag::GetSerializedSize (void) const
 
 {
 
-  return 4;
+  return 3;
 
 }
 

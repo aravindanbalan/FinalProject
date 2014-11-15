@@ -60,5 +60,28 @@ vector < Ptr<Node> > Cluster::getNodeList(){
 	return nodeList;
 }
 
+	vector< Ptr<Node> > Cluster::getSlaveNodes(){
+
+		vector < Ptr<Node> > slaveList = getNodeList();
+		Ptr<Node> master = getMaster();
+
+		/*
+		vector<Ptr<Node> >::iterator position = std::find(slaveList.begin(), slaveList.end(), master);	
+		if (position != slaveList.end())
+			slaveList.erase(position);
+			*/
+			
+			for(vector<Ptr<Node> >::iterator it = slaveList.begin(); it != slaveList.end(); it++)
+			{
+			  if (*it == master)
+			  {
+				slaveList.erase(it);
+				break;  //it is now invalud must break!
+			  }
+			}
+			return slaveList;
+	}
+
+
 }
 

@@ -54,6 +54,7 @@ class ClusterManager : public Application
 		
 		DataRate dataRate;
 		EventId sendEvent;
+		int packet_Type;
 		
 		static int numClusters;
 		static bool instanceFlag;
@@ -72,7 +73,7 @@ class ClusterManager : public Application
 		
 	public:
 		virtual ~ClusterManager ();
-		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr);
+		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, int packetType);
 		void join_Cluster(Ptr<Node> node, int nodeID, int topic);
 		void leave_Cluster(Ptr<Node> node, int nodeID);
 		Cluster* createNewCluster(int clusterID, int topic); 
@@ -101,6 +102,8 @@ class ClusterManager : public Application
 		void eraseAllMaps();
 		ClusterManager();
 		int getMasterNodeIDFromCluster(int clusterID);
+		vector<Ptr<Node> > getSlaveNodesFromCluster(int clusterID);
+		string getSlaveNodeIDsFromCluster(int clusterID);
 
 		
 };

@@ -1,6 +1,8 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "clustermember.h"
+#include "ns3/applications-module.h"
+#include "ns3/core-module.h"
 #include "ns3/icmpv4.h"
 #include "ns3/assert.h"
 #include "ns3/log.h"
@@ -11,10 +13,12 @@
 #include "ns3/inet-socket-address.h"
 #include "ns3/packet.h"
 #include "ns3/trace-source-accessor.h"
+#include "MyTag.h"
 
 namespace ns3 {
 
 /* ... */
+using namespace std;
 	NS_LOG_COMPONENT_DEFINE ("ClusterMember");
 
 	NS_OBJECT_ENSURE_REGISTERED (ClusterMember);
@@ -129,7 +133,7 @@ namespace ns3 {
 
 	}
 
-	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid)
+	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, int pkt_type)
 	{
 		peerAddress = address;
 		nodeID = nodeid;
@@ -137,42 +141,106 @@ namespace ns3 {
 		dataRate = dr;
 		sending = toSend;
 		broadcast = broadcastaddr;
+		pac_type = pkt_type;
+		slaveStr = slaveString;
+		nodes = nodesC;
+	}
+
+	int readPacketTag(Ptr<Packet> packet)
+	{
+			MyTag recTag;
+			packet->PeekPacketTag(recTag);
+			int tagVal =int(recTag.GetPacketType());
+			std::ostringstream s;
+			s<<tagVal;
+			std::string ss(s.str());
+			int pkt_Type = atoi(ss.c_str());
+			return pkt_Type;
+	}
+
+	vector<std::string> getTokens(string str)
+	{
+		vector<std::string> tokens;
+		std::string delimiter = ",";
+		size_t pos = 0;
+		std::string token;
+		while ((pos = str.find(delimiter)) != std::string::npos) {
+			token = str.substr(0, pos);
+			tokens.push_back(token);
+			str.erase(0, pos + delimiter.length());
+		}
+		tokens.push_back(str);
+	
+		return tokens;
 	}
 
 	void ClusterMember::HandleRead (Ptr<Socket> socket)
-	{
-		
-		
+	{		
 		NS_LOG_FUNCTION (this << socket);
 		Ptr<Packet> packet;
 		Address from;
-
 		
-
 		while (packet = socket->RecvFrom (from))
 		{
-		std::cout << "Yes  1111------------------- Cluster Memeber from "<<from << std::endl;	
-			
-		std::cout<< "At time " << Simulator::Now ().GetSeconds () << "s peer received " << packet->GetSize () << " bytes from " <<
-				   InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
-				   InetSocketAddress::ConvertFrom (from).GetPort ()<< " recving : "<<nodeID<<std::endl;
-	
-			
-			packet->RemoveAllPacketTags ();
-			packet->RemoveAllByteTags ();
+			std::cout << "Yes  1111------------------- Cluster Memeber from "<<from << std::endl;	
+				
+			std::cout<< "At time " << Simulator::Now ().GetSeconds () << "s peer received " << packet->GetSize () << " bytes from " <<
+					   InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
+					   InetSocketAddress::ConvertFrom (from).GetPort ()<< " recving : "<<nodeID<<std::endl;
+		
+			uint8_t *buffer = new uint8_t[packet->GetSize()];
+			packet->CopyData(buffer,packet->GetSize());
 
-		/*
-			//NS_LOG_LOGIC ("Echoing packet");
-			//socket->SendTo (packet, 0, from);      
-			if (InetSocketAddress::IsMatchingType (from))
+			int pkt_Type = readPacketTag(packet);
+			recvpacket = packet;
+			
+			std::cout<<"..........Member received packet type : "<< pkt_Type << std::endl;
+			
+			if(pkt_Type == 1)
 			{
-				NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s server sent " << packet->GetSize () << " bytes to " <<
-							   InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
-							   InetSocketAddress::ConvertFrom (from).GetPort ());
+				std::cout<<"..........Slave string for this master node : "<< slaveStr << std::endl;
+				vector<std::string> slaves = getTokens(slaveStr);
+				Ptr<ClusterMember> masterApp;
+				int packet_type = 2;
+				std::cout<<"11111"<<std::endl;
+				masterApp = CreateObject<ClusterMember> ();
+				std::cout<<"222"<<std::endl;
+				masterApp->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), true, true,nodeID,slaveStr, nodes,packet_type);
+				std::cout<<"333 "<<nodeID<<std::endl;
+				nodes.Get(nodeID)->AddApplication (masterApp);
+				std::cout<<"444"<<std::endl;
+				masterApp->SetStartTime (Seconds (1. ));
+				masterApp->SetStopTime (Seconds (300.));
+				
+				Ptr<ClusterMember> peers[slaves.size()];
+				
+				for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+					
+					std::string slave = slaves[i];
+					int slaveID = atoi(slave.c_str());
+					
+					peers[i] = CreateObject<ClusterMember> ();
+					int packet_type = 0;
+					peers[i]->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,packet_type);
+					nodes.Get(slaveID)->AddApplication (peers[i]);
+					peers[i]->SetStartTime (Seconds (1. ));
+					peers[i]->SetStopTime (Seconds (300.));
+					
+					std::cout<<"..........Slave  : "<< slaveID << std::endl;
+				}
+				
 			}
-		*/
+			else if(pkt_Type == 2){
+				
+				
+				
+			}
 		}
 
+	}
+
+	Ptr<Packet> ClusterMember::getPacket(){
+		return recvpacket;
 	}
 
 	void ClusterMember::ScheduleTransmit (Time dt)
@@ -186,9 +254,17 @@ namespace ns3 {
 		NS_LOG_FUNCTION (this);
 
 		NS_ASSERT (sendEvent.IsExpired ());
-
+		
 		Ptr<Packet> p;
 		p = Create<Packet> (dataSize);
+		
+		if(pac_type == 2)
+		{
+			MyTag sendTag;
+			sendTag.SetPacketType(pac_type);
+			p->AddPacketTag(sendTag);
+    
+		}
 
 		// May want to add a trace sink
 		m_socket->Send (p);

@@ -11,6 +11,7 @@
 #include "ns3/inet-socket-address.h"
 #include "ns3/packet.h"
 #include "ns3/trace-source-accessor.h"
+#include "MyTag.h"
 namespace ns3 {
 
 	NS_LOG_COMPONENT_DEFINE ("ClusterManager");
@@ -149,13 +150,14 @@ ClusterManager::ClusterManager ()
 
 	}
 
-	void ClusterManager::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr)
+	void ClusterManager::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, int packetType)
 	{
 		peerAddress = address;
 		peerPort = port;
 		dataRate = dr;
 		sending = toSend;
 		broadcast = broadcastaddr;
+		packet_Type = packetType;
 	}
 
 	void ClusterManager::HandleRead (Ptr<Socket> socket)
@@ -207,8 +209,12 @@ ClusterManager::ClusterManager ()
 		NS_ASSERT (sendEvent.IsExpired ());
 
 		std::cout<<"Inside clustermanager send function"<<std::endl;
+		MyTag sendTag;
+		sendTag.SetPacketType(packet_Type);
+    
 		Ptr<Packet> p;
 		p = Create<Packet> (dataSize);
+		p->AddPacketTag(sendTag);
 
 		// May want to add a trace sink
 		m_socket->Send (p);
@@ -442,6 +448,36 @@ ClusterManager::ClusterManager ()
 		
 		Cluster* cluster = getClusterFromClusterID(clusterID);
 		return getNodeIDForNode(cluster->getMaster());
+	}
+
+	vector<Ptr<Node> > ClusterManager::getSlaveNodesFromCluster(int clusterID){
+		
+		Cluster* cluster = getClusterFromClusterID(clusterID);
+		return cluster->getSlaveNodes();
+	}
+	
+	string ClusterManager::getSlaveNodeIDsFromCluster(int clusterID){
+		
+		vector<Ptr<Node> > slaves = getSlaveNodesFromCluster(clusterID);
+		//vector<int> slaveIDs;
+		
+		string slaveString;
+		
+		for( vector<Ptr<Node> >::iterator iter = slaves.begin(); iter != slaves.end(); ++iter )
+		{
+			Ptr<Node> node = *iter;
+			//slaveIDs.push_back(getNodeIDForNode(node));
+			int nodeID = getNodeIDForNode(node);
+			std::ostringstream s;
+			s<<nodeID;
+			std::string ss(s.str());
+			slaveString.append(ss);
+			slaveString.append(1,',');
+			
+		}
+		slaveString = slaveString.substr(0, slaveString.size()-1);
+		
+		return slaveString;
 	}
 
 }
