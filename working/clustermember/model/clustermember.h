@@ -7,6 +7,7 @@
 #include "ns3/nstime.h"
 #include "ns3/average.h"
 #include "ns3/simulator.h"
+#include "ns3/clustermanager.h"
 #include <map>
 
 #include "ns3/core-module.h"
@@ -27,7 +28,7 @@ class ClusterMember : public Application
 	public:
 		ClusterMember ();
 		virtual ~ClusterMember ();
-		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, std::string slaveString, NodeContainer nodesC, Ipv4InterfaceContainer interf, int pkt_type, int round_start, int round_end);
+		void Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, std::string slaveString, NodeContainer nodesC, Ipv4InterfaceContainer interf, Ptr<ClusterManager> clusMgr, int pkt_type, int topic, int round_start, int round_end);
 		Ptr<Packet> getPacket();
 
 	private:
@@ -57,6 +58,8 @@ class ClusterMember : public Application
 		int pac_type;
 		int roundStart;
 		int roundEnd;
+		Ptr<ClusterManager> clusterMgr;
+		int topic_of_interest;
 		
 		DataRate dataRate;
 		EventId sendEvent;

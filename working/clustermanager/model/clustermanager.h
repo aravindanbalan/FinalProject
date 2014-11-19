@@ -55,6 +55,7 @@ class ClusterManager : public Application
 		DataRate dataRate;
 		EventId sendEvent;
 		int packet_Type;
+		vector<int> chosenMastersSet;
 		
 		static int numClusters;
 		static bool instanceFlag;
@@ -88,6 +89,7 @@ class ClusterManager : public Application
 		void removeClusterIDForNode(Ptr<Node> node);
 		void removeClusterIDForTopic(int topic);
 		void removeClusterIDFromClusterMap(int clusterID);
+		int getTopicFromNode(Ptr<Node> node);
 		
 		Cluster* getClusterFromClusterID(int clusterID);
 		void putClusterForClusterID(int clusterID, Cluster* cluster);	
@@ -104,6 +106,7 @@ class ClusterManager : public Application
 		int getMasterNodeIDFromCluster(int clusterID);
 		vector<Ptr<Node> > getSlaveNodesFromCluster(int clusterID);
 		string getSlaveNodeIDsFromCluster(int clusterID);
+		int getMasterNodeIDFromSlaveID(Ptr<Node> slaveNode);
 
 		
 };

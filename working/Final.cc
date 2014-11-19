@@ -10,10 +10,10 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 //#include "ns3/social-network.h"
+#include "ns3/flow-monitor-module.h"
 #include "ns3/clustermanager.h"
 #include "ns3/clustermember.h"
 #include "ns3/cluster.h"
-#include "ns3/flow-monitor-module.h"
 
 //XXX For anumation
 #include "ns3/netanim-module.h"
@@ -57,6 +57,7 @@ private:
 	int numofTopics;
     double duration;
     bool pcap;
+    bool enableFlowMonitor;
     bool verbose;
     Ptr<ClusterManager> baseStationApp;
     vector<int> masterIDs;
@@ -68,6 +69,7 @@ private:
     Ipv4InterfaceContainer interfaces;
     Ipv4InterfaceContainer interfaceBS;
     NetDeviceContainer apDevices;
+    uint32_t total_lost_packets;
 
 private:
     void CreateNodes ();
@@ -96,8 +98,9 @@ Vanet::Vanet (): nodeNum (51), numRounds (5), numofTopics (7), duration (300.0),
 
 bool Vanet::Configure (int argc, char *argv[])
 {
+	enableFlowMonitor = true;
+	total_lost_packets = 0;
     CommandLine cmd;
-
     cmd.AddValue ("nodeNum", "Number of nodes.", nodeNum);
     cmd.AddValue ("duration", "Simulation time in sec.", duration);
     cmd.AddValue ("numRounds", "Number of rounds to perform", numRounds);
@@ -133,9 +136,44 @@ void Vanet::Run ()
 	AnimationInterface::SetConstantPosition (nodes.Get (50), 7.6, 198.35);
 	AnimationInterface anim ("vanet_animation.xml");
 	anim.EnablePacketMetadata (true);
+	
+	FlowMonitorHelper flowmon;
+	Ptr<FlowMonitor> monitor;
+	if (enableFlowMonitor)
+    {
+      
+		monitor = flowmon.InstallAll(); 
+    }
+
     Simulator::Run ();
     
     myos.close (); // close log file
+	if (enableFlowMonitor)
+    {
+		monitor->CheckForLostPackets ();
+		
+		Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+  std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i)
+    {
+      Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+      std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+      std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
+      std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+      std::cout << "  Tx Packets: " << i->second.txPackets << std::endl; 
+         std::cout << "  Rx Packets: " << i->second.rxPackets << std::endl; 
+         std::cout << "  Lost Packets: " << i->second.lostPackets << std::endl; 
+         total_lost_packets += i->second.lostPackets;
+      
+      //std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (duration - clientStart) / 1024 / 1024  << " Mbps\n";
+    }
+
+  monitor->SerializeToXmlFile ("vanet_flowmon.xml", true, true);
+
+		
+    }
+    
+    std::cout<<"Total number of lost packets : "<<total_lost_packets<<std::endl;
     Simulator::Destroy ();
 }
 
@@ -343,11 +381,31 @@ void Vanet::SendToMasterOfEachCluster (int round , int round_duration, int round
 	
 	for(std::vector<int>::size_type i = 0; i != masterIDs.size(); i++) {
 		masters[i] = CreateObject<ClusterMember> ();
-		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes,interfaces, 0, round_start, round_end);
+		masters[i]->Setup (Ipv4Address::GetBroadcast (), 9, DataRate ("1Mbps"), false, false, masterIDs[i], slaveListStrings[i], nodes,interfaces, baseStationApp, 0,0, round_start, round_end);
 		nodes.Get (masterIDs[i])->AddApplication (masters[i]);
 		masters[i]->SetStartTime (Seconds (round_start));
 		masters[i]->SetStopTime (Seconds (round_end));		
 	}
+	
+	
+	/*
+	// new code receiver for all bradcast in port 10
+	Ptr<ClusterMember> allNodesBroadcastReceiverApp[nodeMobileNodes];
+	for(uint32_t i = 0 ; i< nodeMobileNodes; i++) {
+		
+		//int masterID = baseStationApp->getMasterNodeIDFromSlaveID(nodes.Get(i));
+		//cout<<"Master Node for Node "<< i << " is "<<masterID<<endl;
+		//int currentTopic = baseStationApp->getTopicFromNode(nodes.Get (i));
+	
+			allNodesBroadcastReceiverApp[i] = CreateObject<ClusterMember> ();
+			allNodesBroadcastReceiverApp[i]->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), false, false, i, "", nodes,interfaces, baseStationApp, 0,0, round_start, round_end);
+			nodes.Get (i)->AddApplication (allNodesBroadcastReceiverApp[i]);
+			allNodesBroadcastReceiverApp[i]->SetStartTime (Seconds (0.));
+			allNodesBroadcastReceiverApp[i]->SetStopTime (Seconds (300.0));	
+			
+	}
+	*/
+	
 	
 }
 

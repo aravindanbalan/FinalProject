@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "clustermanager.h"
+#include <stdlib.h>
 #include "ns3/icmpv4.h"
 #include "ns3/assert.h"
 #include "ns3/log.h"
@@ -14,6 +15,7 @@
 #include "MyTag.h"
 namespace ns3 {
 
+	using namespace std;
 	NS_LOG_COMPONENT_DEFINE ("ClusterManager");
 
 	NS_OBJECT_ENSURE_REGISTERED (ClusterManager);
@@ -22,6 +24,7 @@ namespace ns3 {
 	bool ClusterManager::instanceFlag = false;
 	int ClusterManager::numClusters = 0;
 	TypeId ClusterManager::tid;
+	
 	ClusterManager* ClusterManager::clusterMgr = NULL;
 
 	ClusterManager* ClusterManager::getInstance()
@@ -480,6 +483,12 @@ ClusterManager::ClusterManager ()
 		return slaveString;
 	}
 	
+	int randomNumberGenerator(int numNodes)
+	{
+			int v1 = rand() % numNodes; 
+			return v1;
+	}
+
 	void ClusterManager::choose_Master(int clusterID){
 		
 		// as of now choosing the first node as master in each cluster
@@ -488,10 +497,51 @@ ClusterManager::ClusterManager ()
 		
 		// setting the first node in the list to be the master
 		// replace this with the algorithm needed below
-		cluster->setMaster(clusterNodes.front());
+		
+		//cluster->setMaster(clusterNodes.front());
+		
+		
+		/////// New Algorithm /////////////////////
+		unsigned int numNodes = clusterNodes.size();
+		int random_master_index;
+		Ptr<Node> masterNode;
+		
+		while(1)
+		{
+			random_master_index = randomNumberGenerator(numNodes); 
+			
+			masterNode = clusterNodes.at(random_master_index);
+			
+			vector<int>::iterator got;
+			
+			got = find (chosenMastersSet.begin(), chosenMastersSet.end(), random_master_index);
+			if(got == chosenMastersSet.end()){ // element not found, then insert it
+				chosenMastersSet.push_back(random_master_index);
+				break;
+			}
+		}
+		
+		cluster->setMaster(masterNode);
+		if(chosenMastersSet.size() == numNodes)
+			chosenMastersSet.erase (chosenMastersSet.begin(),chosenMastersSet.end());
+		
+		//////////////////////////////////////
 		
 		putClusterForClusterID(clusterID, cluster);
 		
+	}
+	int ClusterManager::getTopicFromNode(Ptr<Node> node){
+		
+		int clusterID = getClusterIDFromNode(node);
+		Cluster* cluster = getClusterFromClusterID(clusterID);
+		return cluster->getTopic();
+		
+	}
+	
+	int ClusterManager::getMasterNodeIDFromSlaveID(Ptr<Node> slaveNode){
+		
+		int clusterID = getClusterIDFromNode(slaveNode);
+		return getMasterNodeIDFromCluster(clusterID);
 	}
 
 }

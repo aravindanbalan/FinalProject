@@ -11,6 +11,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/boolean.h"
 #include "ns3/inet-socket-address.h"
+#include "ns3/clustermanager.h"
 #include "ns3/packet.h"
 #include "ns3/trace-source-accessor.h"
 #include "MyTag.h"
@@ -133,9 +134,10 @@ using namespace std;
 
 	}
 
-	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, Ipv4InterfaceContainer interf,int pkt_type, int round_start, int round_end)
+	void ClusterMember::Setup (Ipv4Address address, uint16_t port, DataRate dr, bool toSend, bool broadcastaddr, uint32_t nodeid, string slaveString,NodeContainer nodesC, Ipv4InterfaceContainer interf,Ptr<ClusterManager> clusMgr,int pkt_type,int topic, int round_start, int round_end)
 	{
 		peerAddress = address;
+		clusterMgr = clusMgr;
 		nodeID = nodeid;
 		peerPort = port;
 		dataRate = dr;
@@ -147,6 +149,7 @@ using namespace std;
 		interfaces = interf;
 		roundStart = round_start;
 		roundEnd = round_end;
+		topic_of_interest = topic;
 	}
 
 	int readPacketTag(Ptr<Packet> packet)
@@ -159,6 +162,18 @@ using namespace std;
 			std::string ss(s.str());
 			int pkt_Type = atoi(ss.c_str());
 			return pkt_Type;
+	}
+	
+	int readTopicTagFromPacket(Ptr<Packet> packet)
+	{
+			MyTag recTag;
+			packet->PeekPacketTag(recTag);
+			int tagVal =int(recTag.GetTopic());
+			std::ostringstream s;
+			s<<tagVal;
+			std::string ss(s.str());
+			int topic = atoi(ss.c_str());
+			return topic;
 	}
 
 	vector<std::string> getTokens(string str)
@@ -201,43 +216,77 @@ using namespace std;
 			
 			if(pkt_Type == 1)
 			{
-				std::cout<<"..........Slave string for this master node : "<< slaveStr << std::endl;
-				vector<std::string> slaves = getTokens(slaveStr);
-				Ptr<ClusterMember> masterApp[slaves.size()];
-				int packet_type = 2;
-				//std::cout<<"11111"<<std::endl;
 				
+				///////////////////////////// check whether current node is master or not and only then handle this packet type
 				
-				Ptr<ClusterMember> peers[slaves.size()];
-				
-				for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+				//std::cout<<"********************* "<<clusterMgr->isMaster(GetNode())<<std::endl;
+				std::cout<<std::endl;
+				if(clusterMgr->isMaster(GetNode()))
+				{
 					
-					std::string slave = slaves[i];
-					int slaveID = atoi(slave.c_str());
+					uint16_t currentTopic = clusterMgr->getTopicFromNode(GetNode());
+					std::cout<<"Current topic for master node :"<<nodeID<<" is "<<currentTopic<<std::endl;
+					//std::cout<<"..........Slave string for this master node : "<< slaveStr << std::endl;
+					vector<std::string> slaves = getTokens(slaveStr);
+					std::cout<<"Slave size : "<<slaves.size()<<std::endl;
+					Ptr<ClusterMember> masterApp[slaves.size()];
+					//Ptr<ClusterMember> masterApp = CreateObject<ClusterMember> ();
+					int packet_type = 2;
+					//std::cout<<"11111"<<std::endl;
 					
-					masterApp[i] = CreateObject<ClusterMember> ();
-					masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,packet_type,roundStart, roundEnd );
-					nodes.Get(nodeID)->AddApplication (masterApp[i]);
-				
-					masterApp[i]->SetStartTime (Seconds (roundStart ));
-					masterApp[i]->SetStopTime (Seconds (roundEnd));
+				/*
+					masterApp->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), true, true,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type, currentTopic, roundStart, roundEnd );
+					nodes.Get(nodeID)->AddApplication (masterApp);
+					masterApp->SetStartTime (Seconds (roundStart ));
+					masterApp->SetStopTime (Seconds (roundEnd));
+	
+			*/
+					std::cout<<"Sending broadcast for Current topic : "<< currentTopic<<std::endl;
+		
+	
+								
+					Ptr<ClusterMember> peers[slaves.size()];
+					for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+						
+						std::string slave = slaves[i];
+						int slaveID = atoi(slave.c_str());
+						
+						masterApp[i] = CreateObject<ClusterMember> ();
+						masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic,roundStart, roundEnd );
+						nodes.Get(nodeID)->AddApplication (masterApp[i]);
 					
-					peers[i] = CreateObject<ClusterMember> ();
-					int packet_type = 0;
-					peers[i]->Setup (interfaces.GetAddress (nodeID), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,packet_type, roundStart, roundEnd);
-					nodes.Get(slaveID)->AddApplication (peers[i]);
-					peers[i]->SetStartTime (Seconds (roundStart ));
-					peers[i]->SetStopTime (Seconds (roundEnd));
+						masterApp[i]->SetStartTime (Seconds (roundStart ));
+						masterApp[i]->SetStopTime (Seconds (roundEnd));
+						
+						peers[i] = CreateObject<ClusterMember> ();
+						int packet_type = 2;
+						peers[i]->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic, roundStart, roundEnd);
+						nodes.Get(slaveID)->AddApplication (peers[i]);
+						peers[i]->SetStartTime (Seconds (roundStart ));
+						peers[i]->SetStopTime (Seconds (roundEnd));
+						
+					//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
+					 
+					}
 					
-				//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
 				}
 				
 			}
 			else if(pkt_Type == 2){
 				
-				std::cout<<"..........Slave recev node  : "<< nodeID << std::endl;
-				//std::cout<<"..........Slave recev node  : "<< slaveStr << std::endl;
-			
+				int top = readTopicTagFromPacket(packet);
+				std::cout<<"Top :"<<top<<std::endl;
+				Ptr<Node> recvnode = GetNode();
+				
+				std::cout<<"*******111  "<<nodeID<<std::endl;
+				int interested_topic = clusterMgr->getTopicFromNode(recvnode);
+				std::cout<<"*******222   "<<interested_topic<<std::endl;
+				
+				if(interested_topic == top)
+				{
+					std::cout<<"..........Slave recev node  : "<< nodeID << " topic : "<<top<< std::endl;
+					//std::cout<<"..........Slave recev node  : "<< slaveStr << std::endl;
+				}
 				
 			}
 		}
@@ -267,6 +316,8 @@ using namespace std;
 		{
 			MyTag sendTag;
 			sendTag.SetPacketType(pac_type);
+			
+			sendTag.SetTopic(topic_of_interest);
 			p->AddPacketTag(sendTag);
     
 		}

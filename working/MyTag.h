@@ -56,6 +56,10 @@ public:
 
   uint8_t GetPacketType (void) const;
   
+  void SetTopic (uint8_t value);
+
+  uint8_t GetTopic (void) const;
+  
   //void SetNodeList (vector<uint8_t> value);
 
   //vector<uint8_t> GetNodeList (void) const;
@@ -67,6 +71,7 @@ private:
  uint8_t m_destaddr;
  vector<uint8_t> nodeList;
  uint8_t packetType;
+ uint8_t topic;
 
 };
 
@@ -151,7 +156,7 @@ MyTag::GetSerializedSize (void) const
 
 {
 
-  return 4;
+  return 5;
 
 }
 
@@ -165,6 +170,7 @@ MyTag::Serialize (TagBuffer i) const
 i.WriteU8 (m_srcaddr);
 i.WriteU8 (m_destaddr);
 i.WriteU8 (packetType);
+i.WriteU8 (topic);
 //i.Write (nodeList, nodeList.size());
 
 }
@@ -179,6 +185,7 @@ MyTag::Deserialize (TagBuffer i)
 m_srcaddr = i.ReadU8 ();
 m_destaddr = i.ReadU8 ();
 packetType = i.ReadU8 ();
+topic = i.ReadU8 ();
 //nodeList
 
 }
@@ -222,6 +229,15 @@ void MyTag::SetPacketType (uint8_t value){
   uint8_t MyTag::GetPacketType (void) const{
 	  
 	  return packetType;
+  }
+  
+  void MyTag::SetTopic (uint8_t value){
+	  topic = value;
+  }
+
+  uint8_t MyTag::GetTopic (void) const{
+	  
+	  return topic;
   }
   
   /*
