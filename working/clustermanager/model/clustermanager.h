@@ -70,6 +70,7 @@ class ClusterManager : public Application
 		std::map<int, int > topicClusterIDAssociationMap;
 		std::map<Ptr<Node>, int > nodeNodeIDAssociationMap;
 		static TypeId tid;
+		bool done;
 		
 		
 	public:
@@ -107,7 +108,10 @@ class ClusterManager : public Application
 		vector<Ptr<Node> > getSlaveNodesFromCluster(int clusterID);
 		string getSlaveNodeIDsFromCluster(int clusterID);
 		int getMasterNodeIDFromSlaveID(Ptr<Node> slaveNode);
-
+		bool isDone();
+		void setDone(bool value);
+		int numofMastersrecv;
+		static void sampleTest();
 		
 };
 

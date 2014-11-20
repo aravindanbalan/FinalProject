@@ -41,6 +41,11 @@ namespace ns3 {
 		
 	}	
 
+void ClusterManager::sampleTest(){
+	
+	cout<<"++++++++++++++++++++++++++++++++++++++++++++++++ sample test..."<<endl;
+	
+}
 ClusterManager::ClusterManager ()
 	{
 		NS_LOG_FUNCTION (this);
@@ -53,6 +58,8 @@ ClusterManager::ClusterManager ()
 		m_received = 0;
 		instanceFlag = false;
 		numClusters = 0;
+		done = false;
+		numofMastersrecv = 0;
 	}
 
 	ClusterManager::~ClusterManager ()
@@ -62,6 +69,16 @@ ClusterManager::ClusterManager ()
 		numClusters = 0;
 	}
 
+	bool ClusterManager::isDone(){
+		return done;
+	}
+
+	void ClusterManager::setDone(bool value){
+		
+		done = value;
+	}
+		
+		
 	void ClusterManager::StartApplication (void)
 	{
 		NS_LOG_FUNCTION (this);
@@ -276,15 +293,19 @@ ClusterManager::ClusterManager ()
 
 	Cluster* ClusterManager::getClusterFromClusterID(int clusterID){
 		
+		//std::cout<<"*******************"<<endl;
 		map<int, Cluster* >::iterator p;
 
 		p = clusterMap.find(clusterID);
+		//std::cout<<"11*******************"<<endl;
 		if(p != clusterMap.end())
 		{
+			//std::cout<<"is there*******************"<<endl;
 			return p->second;
 		}
 		else 
 		{
+			//std::cout<<"null*******************"<<endl;
 			return NULL;
 		}	
 		
@@ -492,8 +513,12 @@ ClusterManager::ClusterManager ()
 	void ClusterManager::choose_Master(int clusterID){
 		
 		// as of now choosing the first node as master in each cluster
+		//std::cout<<"1111"<<std::endl;
 		Cluster* cluster = getClusterFromClusterID(clusterID);
+		//std::cout<<"222"<<std::endl;
 		std::vector < Ptr<Node> > clusterNodes = cluster->getNodeList();
+		
+		//std::cout<<"1333"<<std::endl;
 		
 		// setting the first node in the list to be the master
 		// replace this with the algorithm needed below
@@ -509,7 +534,7 @@ ClusterManager::ClusterManager ()
 		while(1)
 		{
 			random_master_index = randomNumberGenerator(numNodes); 
-			
+			//std::cout<<"random : "<<random_master_index<<std::endl;
 			masterNode = clusterNodes.at(random_master_index);
 			
 			vector<int>::iterator got;

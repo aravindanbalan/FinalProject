@@ -22,6 +22,7 @@ namespace ns3 {
 /* ... */
 
 class Socket;
+class ClusterManager;
 
 class ClusterMember : public Application
 {

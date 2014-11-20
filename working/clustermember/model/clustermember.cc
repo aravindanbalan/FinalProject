@@ -50,46 +50,7 @@ using namespace std;
 			TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
 			m_socket = Socket::CreateSocket (GetNode (), tid);
 		
-			/*
-			if (sending)
-			{
-				if (Ipv4Address::IsMatchingType(peerAddress) == true)
-				{
-					if(broadcast){
-						m_socket->SetAllowBroadcast (true);
-						m_socket->Connect (InetSocketAddress(Ipv4Address("255.255.255.255")));
-					}
-					else
-					{
-						m_socket->Bind();
-						m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(peerAddress), peerPort));
-					}
-				}
-				else if (Ipv6Address::IsMatchingType(peerAddress) == true)
-				{
-					if(broadcast){
-						m_socket->SetAllowBroadcast (true);
-						m_socket->Connect (InetSocketAddress(Ipv4Address("255.255.255.255")));
-					}
-					else
-					{
-						m_socket->Bind6();
-						m_socket->Connect (Inet6SocketAddress (Ipv6Address::ConvertFrom(peerAddress), peerPort));
-					}
-				}
-			}
-			else
-			{
-				InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), peerPort);
-				m_socket->Bind (local);
-				
-			}
-		
-		}
-		
-		m_socket->SetRecvCallback (MakeCallback (&ClusterMember::HandleRead, this));
-		*/
-		
+			
 		if(broadcast)
 			m_socket->SetAllowBroadcast (true);
 			
@@ -150,6 +111,7 @@ using namespace std;
 		roundStart = round_start;
 		roundEnd = round_end;
 		topic_of_interest = topic;
+		//ClusterManager::sampleTest();
 	}
 
 	int readPacketTag(Ptr<Packet> packet)
@@ -220,54 +182,82 @@ using namespace std;
 				///////////////////////////// check whether current node is master or not and only then handle this packet type
 				
 				//std::cout<<"********************* "<<clusterMgr->isMaster(GetNode())<<std::endl;
-				std::cout<<std::endl;
+				//std::cout<<std::endl;
 				if(clusterMgr->isMaster(GetNode()))
 				{
-					
+					clusterMgr->numofMastersrecv++;
+					if(clusterMgr->numofMastersrecv == clusterMgr->getNumberOfClusters())
+						clusterMgr->setDone(true);
+						
 					uint16_t currentTopic = clusterMgr->getTopicFromNode(GetNode());
-					std::cout<<"Current topic for master node :"<<nodeID<<" is "<<currentTopic<<std::endl;
+					//std::cout<<"Current topic for master node :"<<nodeID<<" is "<<currentTopic<<std::endl;
 					//std::cout<<"..........Slave string for this master node : "<< slaveStr << std::endl;
 					vector<std::string> slaves = getTokens(slaveStr);
-					std::cout<<"Slave size : "<<slaves.size()<<std::endl;
-					Ptr<ClusterMember> masterApp[slaves.size()];
-					//Ptr<ClusterMember> masterApp = CreateObject<ClusterMember> ();
+					//std::cout<<"Slave size : "<<slaves.size()<<std::endl;
+					
+					
 					int packet_type = 2;
 					//std::cout<<"11111"<<std::endl;
 					
-				/*
-					masterApp->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), true, true,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type, currentTopic, roundStart, roundEnd );
-					nodes.Get(nodeID)->AddApplication (masterApp);
-					masterApp->SetStartTime (Seconds (roundStart ));
-					masterApp->SetStopTime (Seconds (roundEnd));
-	
-			*/
-					std::cout<<"Sending broadcast for Current topic : "<< currentTopic<<std::endl;
-		
-	
-								
-					Ptr<ClusterMember> peers[slaves.size()];
-					for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+					if(clusterMgr->getNumberOfClusters() == 1)
+					{
+						std::cout<<"Num of cluster is 1"<<std::endl;
+						Ptr<ClusterMember> masterApp = CreateObject<ClusterMember> ();
+						masterApp->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), true, true,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type, currentTopic, roundStart, roundEnd );
+						nodes.Get(nodeID)->AddApplication (masterApp);
+						masterApp->SetStartTime (Seconds (roundStart ));
+						masterApp->SetStopTime (Seconds (roundEnd));
 						
-						std::string slave = slaves[i];
-						int slaveID = atoi(slave.c_str());
-						
-						masterApp[i] = CreateObject<ClusterMember> ();
-						masterApp[i]->Setup (interfaces.GetAddress (slaveID), 10, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic,roundStart, roundEnd );
-						nodes.Get(nodeID)->AddApplication (masterApp[i]);
+						Ptr<ClusterMember> peers[slaves.size()];
+						for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+							
+							std::string slave = slaves[i];
+							int slaveID = atoi(slave.c_str());
+							
+							peers[i] = CreateObject<ClusterMember> ();
+							int packet_type = 2;
+							peers[i]->Setup (Ipv4Address::GetBroadcast (), peerPort, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic, roundStart, roundEnd);
+							nodes.Get(slaveID)->AddApplication (peers[i]);
+							peers[i]->SetStartTime (Seconds (roundStart ));
+							peers[i]->SetStopTime (Seconds (roundEnd));
+
+						}
 					
-						masterApp[i]->SetStartTime (Seconds (roundStart ));
-						masterApp[i]->SetStopTime (Seconds (roundEnd));
-						
-						peers[i] = CreateObject<ClusterMember> ();
-						int packet_type = 2;
-						peers[i]->Setup (Ipv4Address::GetBroadcast (), 10, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic, roundStart, roundEnd);
-						nodes.Get(slaveID)->AddApplication (peers[i]);
-						peers[i]->SetStartTime (Seconds (roundStart ));
-						peers[i]->SetStopTime (Seconds (roundEnd));
-						
-					//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
-					 
+	
 					}
+					//std::cout<<"Sending broadcast for Current topic : "<< currentTopic<<std::endl;
+		
+					else
+					{
+					
+						Ptr<ClusterMember> masterApp[slaves.size()];			
+						Ptr<ClusterMember> peers[slaves.size()];
+						for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
+							
+							std::string slave = slaves[i];
+							int slaveID = atoi(slave.c_str());
+							
+							masterApp[i] = CreateObject<ClusterMember> ();
+							masterApp[i]->Setup (interfaces.GetAddress (slaveID), peerPort, DataRate ("1Mbps"), true, false,nodeID,slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic,roundStart, roundEnd );
+							nodes.Get(nodeID)->AddApplication (masterApp[i]);
+						
+							masterApp[i]->SetStartTime (Seconds (roundStart ));
+							masterApp[i]->SetStopTime (Seconds (roundEnd));
+							
+							peers[i] = CreateObject<ClusterMember> ();
+							int packet_type = 2;
+							peers[i]->Setup (interfaces.GetAddress (nodeID), peerPort, DataRate ("1Mbps"), false, false, slaveID, slaveStr, nodes,interfaces,clusterMgr,packet_type,currentTopic, roundStart, roundEnd);
+							nodes.Get(slaveID)->AddApplication (peers[i]);
+							peers[i]->SetStartTime (Seconds (roundStart ));
+							peers[i]->SetStopTime (Seconds (roundEnd));
+							
+						//	std::cout<<"..........Slave  : "<< slaveID << std::endl;
+						 
+						}
+					
+					}
+					
+					
 					
 				}
 				
@@ -275,12 +265,12 @@ using namespace std;
 			else if(pkt_Type == 2){
 				
 				int top = readTopicTagFromPacket(packet);
-				std::cout<<"Top :"<<top<<std::endl;
+				//std::cout<<"Top :"<<top<<std::endl;
 				Ptr<Node> recvnode = GetNode();
 				
-				std::cout<<"*******111  "<<nodeID<<std::endl;
+				//std::cout<<"*******111  "<<nodeID<<std::endl;
 				int interested_topic = clusterMgr->getTopicFromNode(recvnode);
-				std::cout<<"*******222   "<<interested_topic<<std::endl;
+				//std::cout<<"*******222   "<<interested_topic<<std::endl;
 				
 				if(interested_topic == top)
 				{
