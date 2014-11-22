@@ -97,11 +97,20 @@ void InstallInternetStack ()
 		clusterMgr->join_Cluster(nodes.Get(nodeind), nodeind, random_topic_id);
 		//cout<<"In cluster number : "<< clusterMgr->getClusterIDFromNode(nodes.Get(nodeind)) << endl;
 	}	
-	cout<<"Number of clusters : "<< clusterMgr->getNumberOfClusters() << endl;
+	int numClusters = clusterMgr->getNumberOfClusters();
+	cout<<"Number of clusters : "<<  numClusters << endl;
 	number_slaves = nodeMobileNodes - numofTopics;
 	
 	round_duration = duration/numRounds;
 	number_masters = numofTopics;
+	
+	/*
+	for(int i =0 ;i < numofTopics;i++)
+	{		
+		cluster_sizes[i] = clusterMgr->getClusterFromClusterID(i)->getNumNodes();
+	}
+	* 
+	* */
 	
 }
 
@@ -222,6 +231,7 @@ void DistributeToAllNodes(Ptr<Socket> socket, int src, int topic)
     socket->Send(sendPacket);
     socket->Close();	
     
+    
     if(number_masters == 0)
     {
 		currentRound++;
@@ -232,7 +242,40 @@ void DistributeToAllNodes(Ptr<Socket> socket, int src, int topic)
 			Simulator::Schedule (Seconds(round_duration/1000.0),&StartSimulation);
 			//Simulator::ScheduleNow(&StartSimulation);
 	}
+	
 }
+
+/*
+bool checkIfAllDone(){
+	
+	for(int i =0 ;i<numofTopics ; i++)
+	{
+		if(cluster_sizes[i] != 1)
+			return false;
+	}
+	
+	return true;
+}
+
+void printsizes(){
+	
+	for(int i =0 ;i<numofTopics ; i++)
+	{
+		cout<<" "<<cluster_sizes[i];
+	}
+	cout<<endl;
+
+}
+
+void resetAll(){
+	
+	for(int i =0 ;i<numofTopics ; i++)
+	{
+		cluster_sizes[i] = clusterMgr->getClusterFromClusterID(i)->getNumNodes();
+	}
+
+}
+* */
 
 void ReceiveSlave(Ptr<Socket> socket)
 {
@@ -249,15 +292,41 @@ void ReceiveSlave(Ptr<Socket> socket)
     int topic = readTopicFromPacket(recPacket);
     
     int interested_topic = clusterMgr->getTopicFromNode(slaveNode);
-    socket->Close();
-   // cout<<"Interested topic : "<< interested_topic<<endl;
+    
     if(topic == interested_topic){
     
 		std::cout<<"Slave "<< recNodeIndex<<" received from : "<< srcNodeIndex << " Topic : "<< topic<<endl;
 		
+		//cluster_sizes[topic]--;
+		//printsizes();
+		
 		//number_slaves--;
 		
-		//cout<<"number of slaves received"<<number_slaves<<endl;
+		/*
+		cout<<"number of slaves received"<<number_slaves<<endl;
+		if(number_slaves == 0)
+		{
+			currentRound++;
+			//cout<<"Next round ........ "<< currentRound<< " "<< round_duration <<endl;
+			number_slaves = nodeMobileNodes - numofTopics;
+			 
+			Simulator::Schedule (Seconds(round_duration/1000.0),&StartSimulation);
+			//Simulator::ScheduleNow(&StartSimulation);
+		}
+		* */
+		
+		/*
+		if(checkIfAllDone())
+		{
+			cout<<"Calling next round ... "<<endl;
+			currentRound++;
+			resetAll();
+		
+			Simulator::Schedule (Seconds(round_duration/1000.0),&StartSimulation);
+			//Simulator::ScheduleNow(&StartSimulation);
+			
+		}
+		* */
 	
 		
 	}
@@ -293,7 +362,7 @@ static void PerformStep2(int masterNode, string slaveString)
 							
 	}
 	
-	Simulator::Schedule (Seconds(topic * 0.001),&DistributeToAllNodes, beacon_source,masterNode,topic);
+	Simulator::Schedule (Seconds(topic /1000.0),&DistributeToAllNodes, beacon_source,masterNode,topic);
 
 	//Simulator::Schedule (Seconds((round_duration + topic)/100000.0),&DistributeToAllNodes, beacon_source,masterNode,topic);
 }

@@ -65,6 +65,7 @@ uint32_t size = 1024;
  static int currentRound = 0;
  static int number_slaves = 0;
  int number_masters = 0;
+ //int cluster_sizes[100] = {0};
  
 static void
 CourseChange (std::ostream *myos, std::string foo, Ptr<const MobilityModel> mobility)
