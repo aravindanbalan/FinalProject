@@ -63,7 +63,7 @@ uint32_t size = 1024;
  uint32_t total_lost_packets;
  double round_duration;
  
- static int currentRound = 0;
+ int currentRound = 0;
  static int number_slaves = 0;
  int number_masters = 0;
  int cluster_sizes[100] = {0};
@@ -82,6 +82,17 @@ CourseChange (std::ostream *myos, std::string foo, Ptr<const MobilityModel> mobi
 	<< ", z=" << vel.z << std::endl;
 }
 
+int readRoundPacketTag(Ptr<Packet> packet)
+{
+	MyTag recTag;
+	packet->PeekPacketTag(recTag);
+	int tagVal =int(recTag.GetRound());
+	std::ostringstream s;
+	s<<tagVal;
+	std::string ss(s.str());
+	int round = atoi(ss.c_str());
+	return round;
+}
 
 int readSourceAddressPacketTag(Ptr<Packet> packet)
 {

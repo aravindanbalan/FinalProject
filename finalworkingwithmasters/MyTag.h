@@ -56,6 +56,10 @@ public:
 
   uint8_t GetPacketType (void) const;
   
+  void SetRound (uint8_t value);
+
+  uint8_t GetRound (void) const;
+  
   void SetTopic (uint8_t value);
 
   uint8_t GetTopic (void) const;
@@ -72,6 +76,7 @@ private:
  vector<uint8_t> nodeList;
  uint8_t packetType;
  uint8_t topic;
+  uint8_t round;
 
 };
 
@@ -156,7 +161,7 @@ MyTag::GetSerializedSize (void) const
 
 {
 
-  return 5;
+  return 6;
 
 }
 
@@ -171,6 +176,7 @@ i.WriteU8 (m_srcaddr);
 i.WriteU8 (m_destaddr);
 i.WriteU8 (packetType);
 i.WriteU8 (topic);
+i.WriteU8 (round);
 //i.Write (nodeList, nodeList.size());
 
 }
@@ -186,6 +192,7 @@ m_srcaddr = i.ReadU8 ();
 m_destaddr = i.ReadU8 ();
 packetType = i.ReadU8 ();
 topic = i.ReadU8 ();
+round = i.ReadU8 ();
 //nodeList
 
 }
@@ -238,6 +245,15 @@ void MyTag::SetPacketType (uint8_t value){
   uint8_t MyTag::GetTopic (void) const{
 	  
 	  return topic;
+  }
+  
+    
+  void MyTag::SetRound (uint8_t value){
+	   round = value;
+  }
+
+  uint8_t MyTag::GetRound (void) const{
+	  return round;
   }
   
   /*
