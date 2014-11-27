@@ -14,6 +14,7 @@
 #include "ns3/traced-callback.h"
 #include "ns3/nstime.h"
 #include "ns3/average.h"
+#include <cstdlib>
 #include "ns3/simulator.h"
 #include <map>
 
@@ -47,9 +48,12 @@ uint32_t size = 1024;
  int numRounds;
  int numofTopics;
  double duration;
+ double maxRange;
  bool pcap;
  bool enableFlowMonitor;
  bool verbose;
+ int check;
+ double distanceThreshold;
  ClusterManager* clusterMgr;
  vector<int> masterIDs;
  vector<string> slaveListStrings;
@@ -62,6 +66,7 @@ uint32_t size = 1024;
  NetDeviceContainer apDevices;
  uint32_t total_lost_packets;
  double round_duration;
+ int isSelfish;
  
  int currentRound = 0;
  static int number_slaves = 0;
@@ -76,7 +81,11 @@ CourseChange (std::ostream *myos, std::string foo, Ptr<const MobilityModel> mobi
   Vector pos = mobility->GetPosition (); // Get position
   Vector vel = mobility->GetVelocity (); // Get velocity
   
+  //constantly update the map for current location
+  clusterMgr->setCurrentNodeLocation(node,pos);
+  
   std::cout.precision(5);
+  
   *myos << Simulator::Now () << "; NODE: " << node->GetId() << "; POS: x=" << pos.x << ", y=" << pos.y
 	<< ", z=" << pos.z << "; VEL: x=" << vel.x << ", y=" << vel.y
 	<< ", z=" << vel.z << std::endl;
@@ -99,18 +108,31 @@ int readSourceAddressPacketTag(Ptr<Packet> packet)
 	MyTag recTag;
 	packet->PeekPacketTag(recTag);
 	int tagVal =int(recTag.GetSourceAddress());
+	//cout<<"Tag value : "<<tagVal<<endl;
 	std::ostringstream s;
 	s<<tagVal;
 	std::string ss(s.str());
 	int source_addr = atoi(ss.c_str());
 	return source_addr;
 }
-	
+
+int readSimpleValuePacketTag(Ptr<Packet> packet)
+{
+	MyTag recTag;
+	packet->PeekPacketTag(recTag);
+	int tagVal =int(recTag.GetSimpleValue());
+	std::ostringstream s;
+	s<<tagVal;
+	std::string ss(s.str());
+	int source_addr = atoi(ss.c_str());
+	return source_addr;
+}	
 int readTopicFromPacket(Ptr<Packet> packet)
 {
 	MyTag recTag;
 	packet->PeekPacketTag(recTag);
 	int tagVal =int(recTag.GetTopic());
+	
 	std::ostringstream s;
 	s<<tagVal;
 	std::string ss(s.str());
@@ -132,6 +154,12 @@ vector<std::string> getTokens(string str)
 	tokens.push_back(str);
 
 	return tokens;
+}
+
+int randomBitGeneratorWithProb(double p)
+{
+    double rndDouble = (double)rand() / RAND_MAX;
+    return rndDouble < p;
 }
 
 void setClusterSentMap(int clusterID,bool value){

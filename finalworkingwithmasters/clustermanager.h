@@ -15,6 +15,7 @@
 #include "ns3/log.h"
 #include <iostream>
 #include <sstream>
+#include <math.h> 
 #include <iomanip>
 #include <string>
 #include <cstdlib>
@@ -37,11 +38,15 @@ class ClusterManager
 		std::map<Ptr<Node>, int > nodeNodeIDAssociationMap;
 		static TypeId tid;
 		map<Ptr<Node>,int> nodeMap;
+		map<Ptr<Node>,int> nodeSelfishMap;
 		bool done;
-		
+		int distanceCheck;
+		double threshold;
+		std::map<Ptr<Node>, Vector> currentNodeLocation;
+ 
 	public:
 		virtual ~ClusterManager ();
-		void join_Cluster(Ptr<Node> node, int nodeID, int topic);
+		void join_Cluster(Ptr<Node> node, int nodeID, int topic, int selfish);
 		void leave_Cluster(Ptr<Node> node, int nodeID);
 		Cluster* createNewCluster(int clusterID, int topic); 
 		void choose_Master(int clusterid, int numMasters);
@@ -59,6 +64,8 @@ class ClusterManager
 		
 		void putNodeInMap(Ptr<Node> node,int index);
 		int getNodeFromMap(Ptr<Node> node);
+		void putNodeInSelfishMap(Ptr<Node> node,int index);
+		int getNodeFromSelfishMap(Ptr<Node> node);
 	
 		Cluster* getClusterFromClusterID(int clusterID);
 		void putClusterForClusterID(int clusterID, Cluster* cluster);	
@@ -78,8 +85,40 @@ class ClusterManager
 		bool isDone();
 		void setDone(bool value);
 		int numofMastersrecv;
-		
+		void setCurrentNodeLocation(Ptr<Node> node,Vector value);
+		Vector getCurrentNodeLocation(Ptr<Node> node);
+		void setDistanceCheck(bool value);
+		void setMasterCheckParameters(int check, double distthreshold);
+		bool checkDistance(Vector pos, Vector BSpos);
 };
+
+void ClusterManager::setMasterCheckParameters(int check, double distthreshold){
+	
+	distanceCheck = check;
+	threshold = distthreshold;
+}
+
+
+void ClusterManager::setDistanceCheck(bool value){
+	distanceCheck = value; 
+}
+
+void ClusterManager::setCurrentNodeLocation(Ptr<Node> node,Vector value){
+	
+	map<Ptr<Node>,Vector>::iterator p;
+		p = currentNodeLocation.find(node);
+		if(p != currentNodeLocation.end())
+			currentNodeLocation[node] = value;
+		else
+			currentNodeLocation.insert(pair<Ptr<Node>,Vector>(node,value));
+}
+Vector ClusterManager::getCurrentNodeLocation(Ptr<Node> node){
+	
+	map<Ptr<Node>,Vector>::iterator p;
+		p = currentNodeLocation.find(node);
+		return p->second;
+}
+		
 
 void ClusterManager::putNodeInMap(Ptr<Node> node,int index)
 {
@@ -91,6 +130,22 @@ int ClusterManager::getNodeFromMap(Ptr<Node> node)
 	map<Ptr<Node>,int>::iterator p;
 	p = nodeMap.find(node);
 	if(p != nodeMap.end())
+		return p->second;
+	else 
+		return -1;	
+}
+
+
+void ClusterManager::putNodeInSelfishMap(Ptr<Node> node,int index)
+{
+	nodeSelfishMap.insert(pair<Ptr<Node>,int>(node,index));
+}
+
+int ClusterManager::getNodeFromSelfishMap(Ptr<Node> node)
+{
+	map<Ptr<Node>,int>::iterator p;
+	p = nodeSelfishMap.find(node);
+	if(p != nodeSelfishMap.end())
 		return p->second;
 	else 
 		return -1;	
@@ -190,19 +245,14 @@ ClusterManager::ClusterManager ()
 
 	Cluster* ClusterManager::getClusterFromClusterID(int clusterID){
 		
-		//std::cout<<"*******************"<<endl;
 		map<int, Cluster* >::iterator p;
-
 		p = clusterMap.find(clusterID);
-		//std::cout<<"11*******************"<<endl;
 		if(p != clusterMap.end())
 		{
-			//std::cout<<"is there*******************"<<endl;
 			return p->second;
 		}
 		else 
 		{
-			//std::cout<<"null*******************"<<endl;
 			return NULL;
 		}	
 		
@@ -224,7 +274,7 @@ ClusterManager::ClusterManager ()
 		return newCluster;
 	}
 
-	void ClusterManager::join_Cluster(Ptr<Node> node, int nodeID, int topic){
+	void ClusterManager::join_Cluster(Ptr<Node> node, int nodeID, int topic, int selfish){
 		
 		map<int, int>::iterator p;
 		p = topicClusterIDAssociationMap.find(topic);
@@ -238,6 +288,7 @@ ClusterManager::ClusterManager ()
 			
 			setNodeIDForNode(node,nodeID);
 			putClusterIDForNode(node,clusterID);
+			putNodeInSelfishMap(node,selfish);
 			putClusterForClusterID(clusterID,cluster);
 			putClusterIDForTopic(topic,clusterID);
 		}
@@ -258,6 +309,7 @@ ClusterManager::ClusterManager ()
 			putClusterForClusterID(clusterID,cluster);
 			putClusterIDForNode(node,clusterID);
 			setNodeIDForNode(node,nodeID);
+			putNodeInSelfishMap(node,selfish);
 			
 		}
 
@@ -310,18 +362,8 @@ ClusterManager::ClusterManager ()
 	void ClusterManager::setClusterMgrNode(Ptr<Node> node){
 		
 		clusterMgrNode = node;
-		//setClusterMgrSocket(node);
 	}
-	/*
-	Ptr<Socket> ClusterManager::getClusterMgrSocket(){
-		
-		return clusterMgrSocket;
-	}
-	void ClusterManager::setClusterMgrSocket(Ptr<Node> node){
-		
-		 clusterMgrSocket = Socket::CreateSocket (node, tid);
-	}
-	*/
+	
 	int ClusterManager::getNodeIDForNode(Ptr<Node> node){
 		
 		map<Ptr<Node>, int >::iterator p;
@@ -412,6 +454,13 @@ ClusterManager::ClusterManager ()
 			return v1;
 	}
 
+	bool ClusterManager::checkDistance(Vector pos, Vector BSpos)
+	{
+		double val = pow ((BSpos.x - pos.x),2.0) + pow((BSpos.y - pos.y),2.0) + pow((BSpos.z - pos.z),2.0); 
+		double dist = sqrt(val);
+		return (dist < threshold);
+	}
+
 	void ClusterManager::choose_Master(int clusterID, int numMasters){
 
 		Cluster* cluster = getClusterFromClusterID(clusterID);
@@ -425,23 +474,50 @@ ClusterManager::ClusterManager ()
 		int numChosenMasters = 0;
 		vector<Ptr<Node> > newMasters; 
 		
-		while(1 && numChosenMasters < numMasters)
-		{
-			random_master_index = randomNumberGenerator(numNodes); 
-			//std::cout<<"random : "<<random_master_index<<std::endl;
-			masterNode = clusterNodes.at(random_master_index);
-			int nodeID = getNodeIDForNode(masterNode);
-			vector<int>::iterator got;
-			
-			got = find (chosenMastersSet.begin(), chosenMastersSet.end(), nodeID);
-			if(got == chosenMastersSet.end()){ // element not found, then insert it
-				chosenMastersSet.push_back(nodeID);
-				numChosenMasters++;
-				//cout<<"pushing chosen masters :" <<nodeID<<endl;
-				newMasters.push_back(masterNode);
-				//break;
+			while(1 && numChosenMasters < numMasters)
+			{
+				random_master_index = randomNumberGenerator(numNodes); 
+				//std::cout<<"random : "<<random_master_index<<std::endl;
+				masterNode = clusterNodes.at(random_master_index);
+				int nodeID = getNodeIDForNode(masterNode);
+				Vector pos = getCurrentNodeLocation(masterNode);
+				Vector BSpos = getCurrentNodeLocation(getClusterMgrNode());
+				std::cout.precision(5);
+				//cout << Simulator::Now () << " Master choice NODE: " << nodeID << "; POS: x=" << pos.x << ", y=" << pos.y << ", z=" << pos.z << std::endl;
+				//cout << Simulator::Now () << " Base Station NODE: " << 50 << "; POS: x=" << BSpos.x << ", y=" << BSpos.y << ", z=" << BSpos.z << std::endl;
+				
+				
+				vector<int>::iterator got;
+				
+				// check the distance of the current master from the BS and check for the threshold
+					
+				if(distanceCheck){
+					
+						if(checkDistance(pos,BSpos)){
+							
+							got = find (chosenMastersSet.begin(), chosenMastersSet.end(), nodeID);
+							if(got == chosenMastersSet.end()){ // element not found, then insert it
+								chosenMastersSet.push_back(nodeID);
+								numChosenMasters++;
+								//cout<<"pushing chosen masters :" <<nodeID<<endl;
+								newMasters.push_back(masterNode);
+								//break;
+							}
+						}
+				}	
+				else{
+					
+					got = find (chosenMastersSet.begin(), chosenMastersSet.end(), nodeID);
+							if(got == chosenMastersSet.end()){ // element not found, then insert it
+								chosenMastersSet.push_back(nodeID);
+								numChosenMasters++;
+								//cout<<"pushing chosen masters :" <<nodeID<<endl;
+								newMasters.push_back(masterNode);
+								//break;
+							}
+				}
 			}
-		}
+			
 		
 		cluster->setMaster(newMasters);
 		if(chosenMastersSet.size() == numNodes)
