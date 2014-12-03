@@ -5,10 +5,13 @@
 
 #include "ns3/uinteger.h"
 
+#include "vector"
+
 #include <iostream>
 
 
 using namespace ns3;
+using namespace std;
 
 
 // define this class in a public header
@@ -45,13 +48,35 @@ public:
  void SetDestAddress (uint8_t value);
 
   uint8_t GetDestAddress (void) const;
+  
+  
+  // new methods
+  
+  void SetPacketType (uint8_t value);
 
+  uint8_t GetPacketType (void) const;
+  
+  void SetRound (uint8_t value);
+
+  uint8_t GetRound (void) const;
+  
+  void SetTopic (uint8_t value);
+
+  uint8_t GetTopic (void) const;
+  
+  //void SetNodeList (vector<uint8_t> value);
+
+  //vector<uint8_t> GetNodeList (void) const;
 
 private:
 
   uint8_t m_simpleValue;
  uint8_t m_srcaddr;
  uint8_t m_destaddr;
+ vector<uint8_t> nodeList;
+ uint8_t packetType;
+ uint8_t topic;
+  uint8_t round;
 
 };
 
@@ -136,7 +161,7 @@ MyTag::GetSerializedSize (void) const
 
 {
 
-  return 3;
+  return 6;
 
 }
 
@@ -149,6 +174,10 @@ MyTag::Serialize (TagBuffer i) const
   i.WriteU8 (m_simpleValue);
 i.WriteU8 (m_srcaddr);
 i.WriteU8 (m_destaddr);
+i.WriteU8 (packetType);
+i.WriteU8 (topic);
+i.WriteU8 (round);
+//i.Write (nodeList, nodeList.size());
 
 }
 
@@ -161,6 +190,10 @@ MyTag::Deserialize (TagBuffer i)
   m_simpleValue = i.ReadU8 ();
 m_srcaddr = i.ReadU8 ();
 m_destaddr = i.ReadU8 ();
+packetType = i.ReadU8 ();
+topic = i.ReadU8 ();
+round = i.ReadU8 ();
+//nodeList
 
 }
 
@@ -194,3 +227,44 @@ MyTag::GetSimpleValue (void) const
   return m_simpleValue;
 
 }
+
+void MyTag::SetPacketType (uint8_t value){
+	
+	packetType = value;
+}
+
+  uint8_t MyTag::GetPacketType (void) const{
+	  
+	  return packetType;
+  }
+  
+  void MyTag::SetTopic (uint8_t value){
+	  topic = value;
+  }
+
+  uint8_t MyTag::GetTopic (void) const{
+	  
+	  return topic;
+  }
+  
+    
+  void MyTag::SetRound (uint8_t value){
+	   round = value;
+  }
+
+  uint8_t MyTag::GetRound (void) const{
+	  return round;
+  }
+  
+  /*
+  
+  void MyTag::SetNodeList (vector<uint8_t> value){
+	  
+	  nodeList.assign (value.begin(),value.end());
+  }
+
+  vector<uint8_t> MyTag::GetNodeList (void) const{
+	  
+	  return nodeList;
+  }
+*/
