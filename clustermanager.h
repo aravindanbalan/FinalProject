@@ -44,6 +44,7 @@ class ClusterManager
 		int distanceCheck;
 		double threshold;
 		std::map<Ptr<Node>, Vector> currentNodeLocation;
+		vector<int> globalChosenMastersSet;
  
 	public:
 		virtual ~ClusterManager ();
@@ -99,9 +100,9 @@ class ClusterManager
 
 bool ClusterManager::checkIfAlreadyChosenBefore(int slave){
 		
-	for(uint32_t i =0;i< chosenMastersSet.size();i++)
+	for(uint32_t i =0;i< globalChosenMastersSet.size();i++)
 		{
-			if(chosenMastersSet[i] == slave)
+			if(globalChosenMastersSet[i] == slave)
 				return true;
 		}
 		
@@ -477,7 +478,7 @@ ClusterManager::ClusterManager ()
 		double dist = sqrt(val);
 		return (dist < threshold);
 	}
-
+/*
 	bool ClusterManager::choose_Master(int clusterID, int numMasters, NodeContainer nodes){
 
 		Cluster* cluster = getClusterFromClusterID(clusterID);
@@ -564,11 +565,6 @@ ClusterManager::ClusterManager ()
 	
 		cluster->setSlaveNodes(newSlaveList);
 		
-		/*
-		if(chosenMastersSet.size() == numNodes)
-			chosenMastersSet.erase (chosenMastersSet.begin(),chosenMastersSet.end());
-		
-		*/
 		
 		if(chosenMastersSet.size() == numNodes)
 			chosenMastersSet.erase (chosenMastersSet.begin(),chosenMastersSet.end());
@@ -593,6 +589,194 @@ ClusterManager::ClusterManager ()
 		return true;
 		
 	}
+	
+	*/
+	
+	bool ClusterManager::choose_Master(int clusterID, int numMasters, NodeContainer nodes){
+		
+		Cluster* cluster = getClusterFromClusterID(clusterID);
+		std::vector < Ptr<Node> > clusterNodes = cluster->getNodeList();
+		std::vector < Ptr<Node> > candidates;
+		vector<Ptr<Node> > newMasters; 
+		
+		Vector BSpos = getCurrentNodeLocation(getClusterMgrNode());
+		int numNodes = clusterNodes.size();
+		
+		if(distanceCheck){
+			
+			
+			//step 1 - get all possible candidates
+			for(int i=0;i<numNodes;i++){
+				
+				Ptr<Node> node = clusterNodes.at(i);
+				int nodeID = getNodeIDForNode(node);
+				Vector pos = getCurrentNodeLocation(node);
+				vector<int>::iterator got;
+				
+				// check distance between current node and base station
+				if(checkDistance(pos,BSpos)){
+					
+					got = find (chosenMastersSet.begin(), chosenMastersSet.end(), nodeID);
+					if(got == chosenMastersSet.end()){ 
+						// element not found, then insert it in the candidate set
+						candidates.push_back(node);
+					}
+				}	
+			}
+			
+			//step 2 - check if candidate size > = 10
+			
+			int size = candidates.size();
+			if(size >= numMasters)
+			{
+				int i = 0;
+				vector<Ptr<Node> >::iterator chosenAlready;
+				while(i < numMasters)
+				{
+					int random_master_index = randomNumberGenerator(candidates.size()); 					
+					Ptr<Node> current_candidate = candidates.at(random_master_index);
+					chosenAlready = find (newMasters.begin(), newMasters.end(), current_candidate);
+					if(chosenAlready == newMasters.end())
+					{ 
+						// not found 
+						newMasters.push_back(current_candidate);
+						int nodeID = getNodeIDForNode(current_candidate);
+						chosenMastersSet.push_back(nodeID);
+						globalChosenMastersSet.push_back(nodeID);
+						i++;
+					}				
+				}
+			}
+			else
+			{
+				// if candidate size < 10, then we need to choose a few from previous rounds
+				
+				// push everything first as all are eligible
+				for(vector<Ptr<Node> >::iterator it = candidates.begin(); it != candidates.end(); it++)
+				{
+					  newMasters.push_back(*it); 
+					  int nodeID = getNodeIDForNode(*it); 
+					  globalChosenMastersSet.push_back(nodeID);
+				}
+				
+				// pick the remaining values from the chosen master set, once that is done clear chosen master set	
+				int i=0;
+				while(i < (numMasters - candidates.size()))
+				{	
+					int random_master_index = randomNumberGenerator(chosenMastersSet.size()); 					
+					int current_candidate_index = chosenMastersSet.at(random_master_index);
+					Ptr<Node> current_candidate_node = nodes.Get(current_candidate_index);
+					newMasters.push_back(current_candidate_node);
+					i++;
+				}
+				
+				// now clear the contents of chosen master set
+				chosenMastersSet.erase (chosenMastersSet.begin(),chosenMastersSet.end());
+					
+			}			
+		}
+		else{
+			//normal method without distance check
+	
+			// step 1 - get the candidates
+			for(int i=0;i<numNodes;i++){
+				
+				Ptr<Node> node = clusterNodes.at(i);
+				int nodeID = getNodeIDForNode(node);
+				vector<int>::iterator got;
+					
+					got = find (chosenMastersSet.begin(), chosenMastersSet.end(), nodeID);
+					if(got == chosenMastersSet.end()){ 
+						// element not found, then insert it in the candidate set
+						candidates.push_back(node);
+					}
+			}
+			
+			// step 2 - check if candidate size >= nummasters
+			int size = candidates.size();
+			if(size >= numMasters)
+			{
+				int i = 0;
+				vector<Ptr<Node> >::iterator chosenAlready;
+				while(i < numMasters)
+				{
+					int random_master_index = randomNumberGenerator(candidates.size()); 					
+					Ptr<Node> current_candidate = candidates.at(random_master_index);
+					chosenAlready = find (newMasters.begin(), newMasters.end(), current_candidate);
+					if(chosenAlready == newMasters.end())
+					{ 
+						// not found 
+						newMasters.push_back(current_candidate);
+						int nodeID = getNodeIDForNode(current_candidate);
+						chosenMastersSet.push_back(nodeID);
+						globalChosenMastersSet.push_back(nodeID);
+						i++;
+					}				
+				}
+			}
+			else{
+				
+				// if candidate size < 10, then we need to choose a few from previous rounds
+				
+				// push everything first as all are eligible
+				for(vector<Ptr<Node> >::iterator it = candidates.begin(); it != candidates.end(); it++)
+				{
+					  newMasters.push_back(*it); 
+					  int nodeID = getNodeIDForNode(*it); 
+					  globalChosenMastersSet.push_back(nodeID);
+				}
+				
+				// pick the remaining values from the chosen master set, once that is done clear chosen master set	
+				int i=0;
+				while(i < (numMasters - candidates.size()))
+				{	
+					int random_master_index = randomNumberGenerator(chosenMastersSet.size()); 					
+					int current_candidate_index = chosenMastersSet.at(random_master_index);
+					Ptr<Node> current_candidate_node = nodes.Get(current_candidate_index);
+					newMasters.push_back(current_candidate_node);
+					i++;
+				}
+				
+				// now clear the contents of chosen master set
+				chosenMastersSet.erase (chosenMastersSet.begin(),chosenMastersSet.end());
+				
+			}
+			
+			
+		}// else ends here
+		
+		//set new master set for the cluster
+		
+		cluster->setMaster(newMasters);
+		// set the slaves for this cluster
+		
+		std::vector < Ptr<Node> > slaveNodes = clusterNodes;
+		std::vector < Ptr<Node> > newSlaveList;
+		for(vector<Ptr<Node> >::iterator it = slaveNodes.begin(); it != slaveNodes.end(); it++)
+		{
+		  if(!(std::find(newMasters.begin(), newMasters.end(), *it) != newMasters.end()))
+		  {
+			  newSlaveList.push_back(*it);
+		  } 
+		}
+		
+		cluster->setSlaveNodes(newSlaveList);
+		
+		
+		// update the cluster in map
+		putClusterForClusterID(clusterID, cluster);
+		
+		string slaveString = getSlaveNodeIDsFromCluster(clusterID);;	
+		vector<int> masterNodeIDs = getMasterNodeIDsFromCluster(clusterID);
+		for(uint32_t i =0;i < masterNodeIDs.size();i++)
+		{
+			int masterID =  masterNodeIDs[i];
+			putMasterSlaveInMap(nodes.Get(masterID),slaveString);
+		}
+		
+		return true;
+	}//function ends here
+	
 	int ClusterManager::getTopicFromNode(Ptr<Node> node){
 		
 		int clusterID = getClusterIDFromNode(node);

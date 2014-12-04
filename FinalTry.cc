@@ -34,41 +34,11 @@ bool Configure (int argc, char *argv[])
     return true;
 }
 
-void displayStats()
-{
-	
-	FlowMonitorHelper flowmon;
-	Ptr<FlowMonitor> monitor;
-	
-		monitor = flowmon.InstallAll(); 
-
-		monitor->CheckForLostPackets ();
-		
-		Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
-  std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
-  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i)
-    {
-      Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
-      std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
-      std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
-      std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
-      std::cout << "  Tx Packets: " << i->second.txPackets << std::endl; 
-	 std::cout << "  Rx Packets: " << i->second.rxPackets << std::endl; 
-	 std::cout << "  Lost Packets: " << i->second.lostPackets << std::endl; 
-	 total_lost_packets += i->second.lostPackets;
- 
-	}
-  monitor->SerializeToXmlFile ("vanet_flowmon.xml", true, true);
-
-  std::cout<<"Total number of lost packets : "<<total_lost_packets<<std::endl;
-
-}
-
 void CreateNodes ()
 {
     Ns2MobilityHelper mob = Ns2MobilityHelper (traceFile);
     myos.open (logFile.c_str ());
-    std::cout << "Creating " << nodeNum << " nodes.\n";
+    if (verbose) std::cout << "Creating " << nodeNum << " nodes.\n";
     nodes.Create (nodeNum);
     for(uint32_t nodeind = 0; nodeind < nodeNum; nodeind++)
     {
@@ -138,7 +108,8 @@ void InstallInternetStack ()
 		if(isSelfish)
 		{
 			selfish = randomBitGeneratorWithProb(selfishprob);	
-			cout<<"Node : "<< nodeind <<" selfish : "<< selfish<<endl;	
+			if (verbose) cout<<"Node : "<< nodeind <<" selfish : "<< selfish<<endl;
+			if(selfish) self++;	
 		}
 			
 		clusterMgr->join_Cluster(nodes.Get(nodeind), nodeind, random_topic_id, selfish);
@@ -149,6 +120,7 @@ void InstallInternetStack ()
 	round_duration = duration/numRounds;
 	number_masters = numofTopics * numMasters;
 	
+	cout<<"Starting Round "<<endl;
 }
 
 void ConnectionSucceededCallback (Ptr<Socket> socket)
@@ -207,7 +179,7 @@ void resetClusterSentMap()
 }
 void StartSimulation()
 {
-	cout<<"---------------------------Round "<<currentRound<< "------------------------"<<endl;
+	cout<< currentRound <<" ";
 	if(currentRound == numRounds)
 	{
 		   // currentRound = 0;
@@ -237,7 +209,7 @@ void ReceiveMaster(Ptr<Socket> socket)
 	int clusterID = clusterMgr->getClusterIDFromNode(recvnode);
 	
 	// since previou round master sockets are also open and previous round masters are also receiving, thats why closed the socket
-	socket->Close();
+	//socket->Close();
 	number_masters--;
 	packets_recv_master++;
 
@@ -245,13 +217,13 @@ void ReceiveMaster(Ptr<Socket> socket)
 	{
 		//check if the node is selfish , in that case dont distribute the packets to slaves
 		if(!clusterMgr->getNodeFromSelfishMap(recvnode)){
-			std::cout<<"Master 11111"<< recNodeIndex<<" distributing the packets ...."<<endl;
+			if (verbose) std::cout<<"Master "<< recNodeIndex<<" distributing the packets ...."<<endl;
 			setClusterSentMap(clusterID,true);
 			Simulator::ScheduleNow (&PerformStep2, recNodeIndex);
 		}
 		else{
 			setClusterSentMap(clusterID,false);
-			cout<<"Master Node : "<<recNodeIndex <<" selfish and does not distribute to the slaves...."<<endl;
+			if (verbose) cout<<"Master Node : "<<recNodeIndex <<" is selfish and does not distribute to the slaves...."<<endl;
 			num_selfish_masters++;
 			// if all masters done call next round
 			
@@ -265,8 +237,7 @@ void ReceiveMaster(Ptr<Socket> socket)
 		}
 	}
 	else{
-			std::cout<<"Master "<< recNodeIndex<<" distributing the packets ...."<<endl;
-			
+			if (verbose) std::cout<<"Master "<< recNodeIndex<<" distributing the packets ...."<<endl;
 			//setClusterSentMap(clusterID,true);
 			Simulator::ScheduleNow (&PerformStep2, recNodeIndex);
 	}
@@ -331,17 +302,15 @@ void choose_master()
 		if(!done) Simulator::Stop(Seconds(duration));
 		
 		vector<int> masterNodeIDs = clusterMgr->getMasterNodeIDsFromCluster(clusterID);
-		cout<<"1111111111111111"<<endl;
-		//string slaveString = clusterMgr->getSlaveNodeIDsFromCluster(clusterID);
-		//cout<<"1111111111111111 slave string : "<<slaveString<<endl;
-		cout<<"Masters in cluster id : "<<clusterID<<endl;
-		for(uint32_t i =0;i < masterNodeIDs.size();i++)
+		if (verbose) 
 		{
-			cout<<" "<<masterNodeIDs[i];
-			
-			//clusterMgr->putMasterSlaveInMap(nodes.Get(masterID),slaveString);
-		}	
-		cout<<endl;		
+			cout<<"Masters in cluster id : "<<clusterID<<endl;
+			for(uint32_t i =0;i < masterNodeIDs.size();i++)
+			{
+				cout<<" "<<masterNodeIDs[i];
+			}	
+			cout<<endl;
+		}		
 	}
 	Simulator::ScheduleNow (&PerformStep1);
 }
@@ -381,36 +350,6 @@ void DistributeToAllNodes(Ptr<Socket> socket, int src, int topic)
 	
 }
 
-bool checkIfAllDone(){
-	
-	for(int i =0 ;i<numofTopics ; i++)
-	{
-		if(cluster_sizes[i] != 1)
-			return false;
-	}
-	
-	return true;
-}
-
-void printsizes(){
-	
-	for(int i =0 ;i<numofTopics ; i++)
-	{
-		cout<<" "<<cluster_sizes[i];
-	}
-	cout<<endl;
-
-}
-
-void resetAll(){
-	
-	for(int i =0 ;i<numofTopics ; i++)
-	{
-		cluster_sizes[i] = clusterMgr->getClusterFromClusterID(i)->getNumNodes();
-	}
-
-}
-
 void ReceiveSlave(Ptr<Socket> socket)
 {
 	Ptr<Packet> recPacket = socket->Recv();
@@ -421,12 +360,10 @@ void ReceiveSlave(Ptr<Socket> socket)
 	if(clusterMgr->checkIfAlreadyChosenBefore(recNodeIndex) && currentRound > 0)
 			packets_recv_decoded++;
 
-	//cout<<"Recei packet size : "<<recPacket->GetSize();
 	uint8_t *buffer = new uint8_t[recPacket->GetSize()];
     recPacket->CopyData(buffer,recPacket->GetSize());
 
     int srcNodeIndex = readSourceAddressPacketTag(recPacket);
-    cout<<"Recieved packet from "<<srcNodeIndex<<endl;
     int topic = readTopicFromPacket(recPacket);
     int interested_topic = clusterMgr->getTopicFromNode(slaveNode);
     
@@ -435,7 +372,7 @@ void ReceiveSlave(Ptr<Socket> socket)
     // cout<<"Topic received : "<<topic<<endl;
     if(topic == interested_topic && !clusterMgr->isMaster(slaveNode)){
     
-		std::cout<<"Slave "<< recNodeIndex<<" received from : "<< srcNodeIndex << " Topic : "<< topic<<endl;
+		if (verbose) std::cout<<"Slave "<< recNodeIndex<<" received from : "<< srcNodeIndex << " Topic : "<< topic<<endl;
 		
 	}
 }
@@ -456,18 +393,10 @@ static void PerformStep2(int masterNode)
 	* */
 	Ptr<Node> sourceNode = nodes.Get (masterNode);
 	int topic = clusterMgr->getTopicFromNode(sourceNode);
-	//cout<<"1111111111111111"<<endl;
-	//int clusterID = clusterMgr->getClusterIDFromNode(sourceNode);
-	//cout<<"2222222222222222222"<<endl;
 	string slaveString = clusterMgr->getSlaveStrForMasterFromMap(sourceNode);
 	
 	vector<std::string> slaves = getTokens(slaveString);
-	//cout<<"333333333333333333333"<<endl;
-	
-	
-	//if(currentRound == 1)
-	//{
-		//for(uint32_t i = 0; i < nodeMobileNodes; i++) {	
+		
 	 for(std::vector<int>::size_type i = 0; i != slaves.size(); i++) {
 		 
 		 std::string slave = slaves[i];
@@ -485,11 +414,7 @@ static void PerformStep2(int masterNode)
 		//Simulator::Schedule (Seconds(topic /1000.0),&DistributeToAllNodes, sourceNodeSocket,masterNode,topic);
 		Simulator::ScheduleNow (&DistributeToAllNodes, sourceNodeSocket,masterNode,topic);		
 		}
-	//}
 	
-	
-
-	//Simulator::Schedule (Seconds((round_duration * topic)/100000.0),&DistributeToAllNodes, beacon_source,masterNode,topic);
 }
 
 
@@ -503,6 +428,7 @@ int main (int argc, char *argv[])
 	duration = 300.0; 
 	pcap = true;
     verbose = true;
+    self=0;
     enableFlowMonitor = true;
     check = 0;
     isSelfish = 0;
@@ -525,11 +451,10 @@ int main (int argc, char *argv[])
     CreateDevices ();
     InstallInternetStack ();
     
-    cout<<"check : "<<check<<endl;
     clusterMgr->setClusterMgrNode(nodes.Get (50));
     clusterMgr->setMasterCheckParameters(check,distanceThreshold);
     
-     std::cout << "Starting simulation for " << duration << " s.\n";
+    std::cout << "Starting simulation for " << duration << " s.\n";
             
     currentRound = 0;
     form_Initial_Cluster();
@@ -581,7 +506,8 @@ int main (int argc, char *argv[])
 
   monitor->SerializeToXmlFile ("vanet_flowmon.xml", true, true);
 
-std::cout<<"Current round : "<<currentRound<<std::endl;
+	cout<<endl;
+	std::cout<<"Current round : "<<currentRound<<std::endl;
 	cout<<"Total Sent packets : "<<stats.size()<<endl;  
 	
     std::cout<<"Total number of lost packets : "<<total_lost_packets<<std::endl;
@@ -590,6 +516,7 @@ std::cout<<"Current round : "<<currentRound<<std::endl;
     std::cout<<"Total number of packets received by slave : "<<packets_recv_slaves<<std::endl;
     std::cout<<"Total number of packets decoded by slaves : "<<packets_recv_decoded<<std::endl;
     std::cout<<"Total number of selfish masters that didnt foward : "<<num_selfish_masters<<std::endl;
+    std::cout<<"self : "<<self<<std::endl;
     
     double totalsize = stats.size();
     double loss_rate = total_lost_packets/ (totalsize - packets_recv_master);
@@ -597,11 +524,14 @@ std::cout<<"Current round : "<<currentRound<<std::endl;
     double slaves = nodeMobileNodes - (numofTopics * numMasters);
     double avg_pkt_recv_slave = packets_recv_slaves / slaves;
      double avg_pkt_decoded_slave = packets_recv_decoded / slaves;
+     double decode_rate = avg_pkt_decoded_slave / avg_pkt_recv_slave;
     
     std::cout.precision(5);
     std::cout<<"Loss Rate : "<<loss_rate<<std::endl;
+    std::cout<<"Decode Rate : "<<decode_rate<<std::endl;
     std::cout<<"Avg Pkts received by slaves : "<<avg_pkt_recv_slave<<std::endl;
     std::cout<<"Avg Pkts decoded by slaves : "<<avg_pkt_decoded_slave<<std::endl;
+    
     Simulator::Destroy ();
 
     return 0;

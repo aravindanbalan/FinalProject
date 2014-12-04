@@ -59,7 +59,9 @@ uint32_t size = 1024;
  vector<string> slaveListStrings;
  static double packets_recv_master;
  static int packets_recv_slaves;
-  static int packets_recv_decoded;
+ static int packets_recv_decoded;
+
+int self = 0;
 
  NodeContainer nodes;
  NodeContainer wifiApNode;
