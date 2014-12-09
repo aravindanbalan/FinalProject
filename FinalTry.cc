@@ -121,6 +121,9 @@ void InstallInternetStack ()
 	number_masters = numofTopics * numMasters;
 	
 	cout<<"Starting Round "<<endl;
+	
+
+	
 }
 
 void ConnectionSucceededCallback (Ptr<Socket> socket)
@@ -177,9 +180,11 @@ void resetClusterSentMap()
 		setClusterSentMap(clusterID,false);
 	}
 }
+
 void StartSimulation()
 {
 	cout<< currentRound <<" ";
+	
 	if(currentRound == numRounds)
 	{
 		   // currentRound = 0;
@@ -302,7 +307,7 @@ void choose_master()
 		if(!done) Simulator::Stop(Seconds(duration));
 		
 		vector<int> masterNodeIDs = clusterMgr->getMasterNodeIDsFromCluster(clusterID);
-		if (verbose) 
+		//if (verbose) 
 		{
 			cout<<"Masters in cluster id : "<<clusterID<<endl;
 			for(uint32_t i =0;i < masterNodeIDs.size();i++)

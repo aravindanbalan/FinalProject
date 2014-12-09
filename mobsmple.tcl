@@ -1062,4 +1062,4 @@ $ns_ at 117.0 "$node_(47) setdest 61.75 3.29 25.70"
 $node_(50) set X_ 7.6
 $node_(50) set Y_ 198.35
 $node_(50) set Z_ 0
-$ns_ at 300.0 "$node_(50) setdest 96.76 198.35 0"
+$ns_ at 300.0 "$node_(50) setdest 7.6 198.35 0"

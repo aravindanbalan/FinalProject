@@ -100,9 +100,9 @@ class ClusterManager
 
 bool ClusterManager::checkIfAlreadyChosenBefore(int slave){
 		
-	for(uint32_t i =0;i< globalChosenMastersSet.size();i++)
+	for(uint32_t i =0;i< chosenMastersSet.size();i++)
 		{
-			if(globalChosenMastersSet[i] == slave)
+			if(chosenMastersSet[i] == slave)
 				return true;
 		}
 		
@@ -773,6 +773,13 @@ ClusterManager::ClusterManager ()
 			int masterID =  masterNodeIDs[i];
 			putMasterSlaveInMap(nodes.Get(masterID),slaveString);
 		}
+		
+		for(uint32_t i =0;i < chosenMastersSet.size();i++)
+		{
+			cout<<" "<<chosenMastersSet.at(i);
+		}
+		cout<<endl;
+		
 		
 		return true;
 	}//function ends here
