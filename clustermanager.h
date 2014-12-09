@@ -44,7 +44,7 @@ class ClusterManager
 		int distanceCheck;
 		double threshold;
 		std::map<Ptr<Node>, Vector> currentNodeLocation;
-		vector<int> globalChosenMastersSet;
+		vector<int> chosenMastersset;
  
 	public:
 		virtual ~ClusterManager ();
@@ -100,9 +100,9 @@ class ClusterManager
 
 bool ClusterManager::checkIfAlreadyChosenBefore(int slave){
 		
-	for(uint32_t i =0;i< chosenMastersSet.size();i++)
+	for(uint32_t i =0;i< chosenMastersset.size();i++)
 		{
-			if(chosenMastersSet[i] == slave)
+			if(chosenMastersset[i] == slave)
 				return true;
 		}
 		
@@ -642,7 +642,7 @@ ClusterManager::ClusterManager ()
 						newMasters.push_back(current_candidate);
 						int nodeID = getNodeIDForNode(current_candidate);
 						chosenMastersSet.push_back(nodeID);
-						globalChosenMastersSet.push_back(nodeID);
+						chosenMastersset.push_back(nodeID);
 						i++;
 					}				
 				}
@@ -656,7 +656,7 @@ ClusterManager::ClusterManager ()
 				{
 					  newMasters.push_back(*it); 
 					  int nodeID = getNodeIDForNode(*it); 
-					  globalChosenMastersSet.push_back(nodeID);
+					  chosenMastersset.push_back(nodeID);
 				}
 				
 				// pick the remaining values from the chosen master set, once that is done clear chosen master set	
@@ -709,7 +709,7 @@ ClusterManager::ClusterManager ()
 						newMasters.push_back(current_candidate);
 						int nodeID = getNodeIDForNode(current_candidate);
 						chosenMastersSet.push_back(nodeID);
-						globalChosenMastersSet.push_back(nodeID);
+						chosenMastersset.push_back(nodeID);
 						i++;
 					}				
 				}
@@ -723,7 +723,7 @@ ClusterManager::ClusterManager ()
 				{
 					  newMasters.push_back(*it); 
 					  int nodeID = getNodeIDForNode(*it); 
-					  globalChosenMastersSet.push_back(nodeID);
+					  chosenMastersset.push_back(nodeID);
 				}
 				
 				// pick the remaining values from the chosen master set, once that is done clear chosen master set	
